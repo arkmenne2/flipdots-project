@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>DOOM</title>
+    <style type="text/css">
+      .dosbox-container { width: 640px; height: 400px; }
+      .dosbox-container > .dosbox-overlay { background: url(https://js-dos.com/cdn/DOOM.png); }
+      body { font-family: Arial, sans-serif; padding: 16px; }
+      #dosbox { border: 1px solid #333; }
+    </style>
+  </head>
+  <body>
+    <h1>DOOM (js-dos)</h1>
+    <div id="dosbox"></div>
+    <div style="margin-top:12px">
+      <div style="font-size:14px;margin-bottom:6px">Flipboard preview (84×24, B/W)</div>
+      <canvas id="preview" width="84" height="24" style="
+        border:1px solid #333;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+        width: 840px; height: 240px;
+        background:#000;
+      "></canvas>
+    </div>
+    <canvas id="bw" width="84" height="24" style="display:none"></canvas>
+    <br/>
+    <button onclick="dosbox.requestFullScreen();">Make fullscreen</button>
+    <script type="text/javascript" src="https://js-dos.com/cdn/js-dos-api.js"></script>
+    <script type="text/javascript">
+      var dosbox = new Dosbox({
+        id: "dosbox",
+        onload: function (dosbox) {
+          dosbox.run("/DOOM.zip", "DOOM.EXE");
+        },
+        onrun: function (dosbox, app) {
+          console.log("App '" + app + "' is running");
+        }
+      });
+
+      // Capture the Dosbox canvas, downscale to 84x28, threshold to B/W, send at 15 FPS
+      const TARGET_W = 84;
+      const TARGET_H = 24;
+      const FPS = 15;
+      const INTERVAL = 1000 / FPS;
+
+      const bwCanvas = document.getElementById('bw');
+      const bwCtx = bwCanvas.getContext('2d', { willReadFrequently: true });
+      const previewCanvas = document.getElementById('preview');
+      const previewCtx = previewCanvas.getContext('2d');
+
+      function findDosCanvas() {
+        const container = document.getElementById('dosbox');
+        return container ? container.querySelector('canvas') : null;
+      }
+
+      async function loop() {
+        const source = findDosCanvas();
+        if (source) {
+          // Draw to 84x28 with nearest neighbor-like effect
+          bwCtx.imageSmoothingEnabled = false;
+          bwCtx.clearRect(0, 0, TARGET_W, TARGET_H);
+          bwCtx.drawImage(source, 0, 0, TARGET_W, TARGET_H);
+
+          // Threshold to black/white
+          const img = bwCtx.getImageData(0, 0, TARGET_W, TARGET_H);
+          const data = img.data;
+          for (let i = 0; i < data.length; i += 4) {
+            const brightness = (data[i] + data[i+1] + data[i+2]) / 3;
+            const v = brightness > 127 ? 255 : 0;
+            data[i] = v; data[i+1] = v; data[i+2] = v; data[i+3] = 255;
+          }
+          bwCtx.putImageData(img, 0, 0);
+
+          // Draw onto on-page preview (stretched by CSS with nearest-neighbor)
+          previewCtx.imageSmoothingEnabled = false;
+          previewCtx.clearRect(0, 0, TARGET_W, TARGET_H);
+          previewCtx.drawImage(bwCanvas, 0, 0);
+
+          // Upload PNG to server
+          bwCanvas.toBlob(async (blob) => {
+            if (!blob) return;
+            try {
+              await fetch('/upload-frame', { method: 'POST', body: blob });
+            } catch (e) {
+              console.warn('Upload failed', e);
+            }
+          }, 'image/png');
+        }
+        setTimeout(loop, INTERVAL);
+      }
+      setTimeout(loop, INTERVAL);
+    </script>
+  </body>
+  </html>
+
+
