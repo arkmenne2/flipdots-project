@@ -40,6 +40,20 @@ http
 `);
 		} else if (req.url && req.url.startsWith("/frame.png")) {
 			sendFile(res, path.resolve("./output/frame.png"), "image/png");
+		} else if (req.url === "/upload-frame" && req.method === "POST") {
+			const chunks = [];
+			req.on("data", (c) => chunks.push(c));
+			req.on("end", () => {
+				try {
+					const buffer = Buffer.concat(chunks);
+					fs.writeFileSync(path.resolve("./output/frame.png"), buffer);
+					res.writeHead(200, { "Content-Type": "text/plain" });
+					res.end("OK");
+				} catch (err) {
+					res.writeHead(500, { "Content-Type": "text/plain" });
+					res.end("Server error");
+				}
+			});
 		} else if (req.url === "/doom.html") {
 			sendFile(res, path.resolve("./doom.html"), "text/html; charset=utf-8");
 		} else if (req.url === "/DOOM.zip") {

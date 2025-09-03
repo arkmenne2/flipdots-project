@@ -50,6 +50,19 @@
       const previewCanvas = document.getElementById('preview');
       const previewCtx = previewCanvas.getContext('2d');
 
+      // Sobel kernels (inspired by three.js Sobel example)
+      // https://threejs.org/examples/webgl_postprocessing_sobel.html
+      const KERNEL_GX = [
+        -1, 0, 1,
+        -2, 0, 2,
+        -1, 0, 1
+      ];
+      const KERNEL_GY = [
+         1,  2,  1,
+         0,  0,  0,
+        -1, -2, -1
+      ];
+
       function findDosCanvas() {
         const container = document.getElementById('dosbox');
         return container ? container.querySelector('canvas') : null;
@@ -61,15 +74,58 @@
           // Draw to 84x28 with nearest neighbor-like effect
           bwCtx.imageSmoothingEnabled = false;
           bwCtx.clearRect(0, 0, TARGET_W, TARGET_H);
-          bwCtx.drawImage(source, 0, 0, TARGET_W, TARGET_H);
+          // Crop out the DOOM status bar (HUD) at the bottom (~32px of 200px)
+          const sw = source.width;
+          const sh = source.height;
+          const hudHeight = Math.round(sh * (32 / 200));
+          const cropY = 0;
+          const cropH = Math.max(1, sh - hudHeight);
+          bwCtx.drawImage(source, 0, cropY, sw, cropH, 0, 0, TARGET_W, TARGET_H);
 
-          // Threshold to black/white
+          // Edge-enhanced threshold to black/white (Sobel)
           const img = bwCtx.getImageData(0, 0, TARGET_W, TARGET_H);
           const data = img.data;
-          for (let i = 0; i < data.length; i += 4) {
-            const brightness = (data[i] + data[i+1] + data[i+2]) / 3;
-            const v = brightness > 127 ? 255 : 0;
-            data[i] = v; data[i+1] = v; data[i+2] = v; data[i+3] = 255;
+          const w = TARGET_W;
+          const h = TARGET_H;
+          const gray = new Uint8ClampedArray(w * h);
+          for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+              const idx = (y * w + x) * 4;
+              const r = data[idx];
+              const g = data[idx + 1];
+              const b = data[idx + 2];
+              gray[y * w + x] = (r + g + b) / 3;
+            }
+          }
+          const edges = new Uint16Array(w * h);
+          for (let y = 1; y < h - 1; y++) {
+            for (let x = 1; x < w - 1; x++) {
+              let gx = 0, gy = 0, k = 0;
+              for (let ky = -1; ky <= 1; ky++) {
+                for (let kx = -1; kx <= 1; kx++) {
+                  const v = gray[(y + ky) * w + (x + kx)];
+                  gx += v * KERNEL_GX[k];
+                  gy += v * KERNEL_GY[k];
+                  k++;
+                }
+              }
+              const mag = Math.min(255, Math.hypot(gx, gy) | 0);
+              edges[y * w + x] = mag;
+            }
+          }
+          const EDGE_THRESHOLD = 90; // tune to taste
+          const WALL_EDGE_THRESHOLD = 120; // higher threshold for walls only
+          for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+              const idx = (y * w + x) * 4;
+              const brightness = gray[y * w + x];
+              const edge = edges[y * w + x] || 0;
+              // Keep original bright pixels OR only very strong edges (thick walls)
+              // This prevents the whole screen from being too white
+              // Lower brightness threshold to make gun more visible
+              const v = (brightness > 100 || edge > WALL_EDGE_THRESHOLD) ? 255 : 0;
+              data[idx] = v; data[idx + 1] = v; data[idx + 2] = v; data[idx + 3] = 255;
+            }
           }
           bwCtx.putImageData(img, 0, 0);
 
