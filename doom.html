@@ -69,6 +69,8 @@
       }
 
       async function loop() {
+        }
+        nextTick += INTERVAL;
         const source = findDosCanvas();
         if (source) {
           // Draw to 84x28 with nearest neighbor-like effect
@@ -144,7 +146,9 @@
             }
           }, 'image/png');
         }
-        setTimeout(loop, INTERVAL);
+        // Account for processing time drift
+        const after = performance.now();
+        setTimeout(loop, Math.max(0, nextTick - after));
       }
       setTimeout(loop, INTERVAL);
     </script>
