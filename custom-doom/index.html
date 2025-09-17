@@ -2,510 +2,168 @@
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>84x28 Raycaster</title>
+  <title>84x28 Raycaster Gallery</title>
   <style>
-    .stage { position: relative; width: 840px; height: 280px; }
-    #v { image-rendering: pixelated; width: 840px; height: 280px; background:#000; display:block; }
-    #post { image-rendering: pixelated; width: 840px; height: 280px; position:absolute; left:0; top:0; pointer-events:none; }
-    #mini { image-rendering: pixelated; width: 256px; height: 256px; background:#222; margin-left: 24px; }
-    body { margin:0; display:flex; align-items:center; justify-content:center; height:100vh; background:#111; }
+    /* Main game display container */
+    .stage { 
+      position: relative; 
+      width: 840px; 
+      height: 280px; 
+    }
+    
+    /* Primary raycaster canvas - scaled 10x for visibility */
+    #v { 
+      image-rendering: pixelated; 
+      width: 840px; 
+      height: 280px; 
+      background: #000; 
+      display: block; 
+    }
+    
+    /* Overlay canvas for UI elements (pillars, frames) */
+    #post { 
+      image-rendering: pixelated; 
+      width: 840px; 
+      height: 280px; 
+      position: absolute; 
+      left: 0; 
+      top: 0; 
+      pointer-events: none; 
+    }
+    
+    /* Development minimap */
+    #mini { 
+      image-rendering: pixelated; 
+      width: 256px; 
+      height: 256px; 
+      background: #222; 
+      margin-left: 24px; 
+    }
+    
+    /* Center layout and dark theme */
+    body { 
+      margin: 0; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      height: 100vh; 
+      background: #111; 
+    }
+
+    /* Loading indicator */
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-family: monospace;
+      font-size: 16px;
+    }
   </style>
-  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
-  
 </head>
 <body>
-<div class="stage">
-<canvas id="v" width="84" height="28"></canvas>
-<canvas id="post" width="84" height="28"></canvas>
-</div>
-<canvas id="mini" width="128" height="128" title="Minimap (dev)"></canvas>
-<script>
-const canvas = document.getElementById('v');
-// overlay for pillars constrained to wall height
-const post = document.getElementById('post');
-const pctx = post.getContext('2d', { willReadFrequently: true });
-// offscreen buffer for post-process (Sobel)
-const off = document.createElement('canvas');
-off.width = canvas.width; off.height = canvas.height;
-const octx = off.getContext('2d', { willReadFrequently: true });
-// minimap
-const mini = document.getElementById('mini');
-const mctx = mini.getContext('2d', { willReadFrequently: true });
+  <div class="stage">
+    <canvas id="v" width="84" height="28"></canvas>
+    <canvas id="post" width="84" height="28"></canvas>
+  </div>
+  <canvas id="mini" width="128" height="128" title="Minimap (dev)"></canvas>
+  
+  <div class="loading" id="loading">Loading...</div>
 
-// (no dithering; depth indicated by white edge thickness)
-let smoothDepth = new Float32Array(0);
-let smoothSize = new Float32Array(0);
-let currentNow = 0; // updated each frame
-let galleryCooldownUntil = 0; // ms timestamp to relax gallery collisions/stops after trigger
+  <!-- Three.js for hardware acceleration -->
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  
+  <!-- Main application script -->
+  <script type="module">
+    // =============================================================================
+    // MAIN APPLICATION ENTRY POINT
+    // =============================================================================
+    
+    import { TARGET_FPS } from './js/config.js';
+    import { updateMovement, handleFloorInteractions, clearMovementKeys } from './js/player.js';
+    import { updateGalleryInteractions } from './js/gallery.js';
+    import { initializeEngine, render, renderMinimap, invalidateCache } from './js/engine.js';
 
-// three.js setup: scene renders the offscreen buffer as a textured quad (no postprocess)
-let useThree = false;
-let renderer, scene, camera, texture;
-let fctx = null; // 2D fallback context
-try {
-  if (window.THREE) {
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, preserveDrawingBuffer: true });
-    renderer.setSize(canvas.width, canvas.height, false);
-    renderer.setPixelRatio(1);
-    scene = new THREE.Scene();
-    camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-    texture = new THREE.CanvasTexture(off);
-    texture.minFilter = THREE.NearestFilter;
-    texture.magFilter = THREE.NearestFilter;
-    texture.generateMipmaps = false;
-    const material = new THREE.MeshBasicMaterial({ map: texture });
-    const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
-    scene.add(quad);
-    useThree = true;
-  }
-} catch (e) {
-  useThree = false;
-}
-if (!useThree) {
-  fctx = canvas.getContext('2d', { willReadFrequently: true });
-}
+    // =============================================================================
+    // INITIALIZATION
+    // =============================================================================
 
-const map = [
-  [1,1,1,1,1,1,1,1,1,1,1,1],
-  [1,0,0,0,0,0,0,0,0,2,0,1],
-  [1,0,0,0,0,0,0,0,0,0,0,1],
-  [1,0,0,0,1,1,1,0,0,0,0,1],
-  [1,0,0,0,1,0,1,0,0,0,0,1],
-  [1,0,0,0,1,0,1,0,0,0,0,1],
-  [1,0,0,0,1,0,1,0,0,3,0,1],
-  [1,0,0,0,1,0,1,0,0,0,0,1],
-  [1,0,0,0,1,1,1,0,0,0,0,1],
-  [1,0,0,0,0,0,0,0,0,0,0,1],
-  [1,0,0,0,0,0,0,0,0,0,0,1],
-  [1,1,1,1,1,1,1,1,1,1,1,1],
-];
-const mapW = map[0].length, mapH = map.length, tile = 1;
+    // Get canvas elements
+    const canvas = document.getElementById('v');
+    const post = document.getElementById('post');
+    const mini = document.getElementById('mini');
+    const loading = document.getElementById('loading');
 
-// Utility to test tile walls by integer indices (treat out-of-bounds as wall to capture outer boundary corners)
-function tileIsWall(tx, ty) {
-  if (tx < 0 || ty < 0 || tx >= mapW || ty >= mapH) return true;
-  return map[ty][tx] === 1;
-}
+    // Initialize the rendering engine
+    initializeEngine(canvas, post, mini);
 
-// Compute all grid-node corners where exactly two orthogonal neighbors are walls (true L-corners)
-function computeWallCorners() {
-  const points = [];
-  for (let y = 0; y <= mapH; y++) {
-    for (let x = 0; x <= mapW; x++) {
-      const a = tileIsWall(x - 1, y - 1); // top-left tile
-      const b = tileIsWall(x,     y - 1); // top-right tile
-      const c = tileIsWall(x - 1, y    ); // bottom-left tile
-      const d = tileIsWall(x,     y    ); // bottom-right tile
-      const count = (a?1:0) + (b?1:0) + (c?1:0) + (d?1:0);
-      if (count !== 2) continue; // need an L, not straight edge (0,1,3,4, or diagonal 2)
-      const diagonal = (a && d) || (b && c);
-      if (diagonal) continue; // exclude diagonal pairs
-      points.push({ x, y });
-    }
-  }
-  return points;
-}
-const cornerPoints = computeWallCorners();
+    // Hide loading indicator
+    loading.style.display = 'none';
 
-// Compute non-corner wall-adjacent nodes (invert of true corners):
-// include straight-edge junctions (counts 1 or 3) and diagonal pairs (count 2 with diagonal),
-// exclude empty (0) and solid (4) and true L-corners (count 2 non-diagonal)
-function computeNonCornerPoints() {
-  const points = [];
-  for (let y = 0; y <= mapH; y++) {
-    for (let x = 0; x <= mapW; x++) {
-      const a = tileIsWall(x - 1, y - 1);
-      const b = tileIsWall(x,     y - 1);
-      const c = tileIsWall(x - 1, y    );
-      const d = tileIsWall(x,     y    );
-      const count = (a?1:0) + (b?1:0) + (c?1:0) + (d?1:0);
-      if (count === 0 || count === 4) continue; // skip empty and fully solid
-      const diagonal = (a && d) || (b && c);
-      // keep if not a true L-corner
-      if (count !== 2 || diagonal) points.push({ x, y });
-    }
-  }
-  return points;
-}
-const nonCornerPoints = computeNonCornerPoints();
+    // =============================================================================
+    // GAME LOOP
+    // =============================================================================
 
-// Four gallery frames around the room
-const galleryFrames = [
-  // Right wall center
-  { x: mapW - 2 + 0.5, y: Math.floor(mapH / 2), width: 0.8, height: 1.2, triggered: false, suppressStop: false, url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-  // Left wall center
-  { x: 1 + 0.5,        y: Math.floor(mapH / 2), width: 0.8, height: 1.2, triggered: false, suppressStop: false, url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-  // Top wall center
-  { x: Math.floor(mapW / 2), y: 1 + 0.5,        width: 1.2, height: 0.8, triggered: false, suppressStop: false, url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-  // Bottom wall center
-  { x: Math.floor(mapW / 2), y: mapH - 2 + 0.5, width: 1.2, height: 0.8, triggered: false, suppressStop: false, url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
-];
+    let last = performance.now();
 
-// player
-let px = 2.5, py = 2.5, pa = 0; // x, y, angle (radians)
-const fov = Math.PI / 3; // 60°
-const moveSpeed = 2.2 / 15; // a bit faster to shorten traversal
-const rotSpeed = 1.8 / 15;
-
-const keys = {};
-addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-addEventListener('keyup',   e => keys[e.key.toLowerCase()] = false);
-
-// Utility to clear movement/turn keys (prevents "stuck" movement when focus changes)
-function clearMovementKeys() {
-  keys['w'] = false; keys['arrowup'] = false;
-  keys['s'] = false; keys['arrowdown'] = false;
-  keys['a'] = false; keys['d'] = false;
-  keys['q'] = false; keys['e'] = false;
-}
-
-// Clear keys when the window loses focus or tab visibility changes
-window.addEventListener('blur', clearMovementKeys);
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) clearMovementKeys();
-});
-
-function isWall(x, y) {
-  if (x < 0 || y < 0 || x >= mapW || y >= mapH) return 1;
-  return map[Math.floor(y)][Math.floor(x)] === 1 ? 1 : 0;
-}
-
-function castRay(rayAngle) {
-  // DDA stepping with hit position
-  let x = px, y = py;
-  const stepX = Math.cos(rayAngle);
-  const stepY = Math.sin(rayAngle);
-  const maxSteps = 64;
-  let dist = 0;
-  let hitX = x, hitY = y;
-  for (let i = 0; i < maxSteps; i++) {
-    x += stepX * 0.05;
-    y += stepY * 0.05;
-    dist += 0.05;
-    if (isWall(x, y)) { hitX = x; hitY = y; break; }
-  }
-  const safeDist = Math.max(dist, 0.0001);
-  return { dist: safeDist, hitX, hitY };
-}
-
-function update(dt) {
-  // movement
-  const forward = (keys['w'] || keys['arrowup']) ? 1 : (keys['s'] || keys['arrowdown']) ? -1 : 0;
-  const strafe  = (keys['a']) ? -1 : (keys['d']) ? 1 : 0;
-  const turn    = (keys['q'] || keys['arrowleft']) ? -1 : (keys['e'] || keys['arrowright']) ? 1 : 0;
-
-  pa += turn * rotSpeed * dt;
-
-  const dx = Math.cos(pa), dy = Math.sin(pa);
-  let mx = (dx * forward + Math.cos(pa + Math.PI/2) * strafe) * moveSpeed * dt;
-  let my = (dy * forward + Math.sin(pa + Math.PI/2) * strafe) * moveSpeed * dt;
-
-  // hard-stop forward motion when close to any gallery frame (unless stop is suppressed or in cooldown)
-  if (forward > 0 && currentNow >= galleryCooldownUntil) {
-    for (let i = 0; i < galleryFrames.length; i++) {
-      const gf = galleryFrames[i];
-      if (gf.suppressStop) continue;
-      const fx = gf.x - px;
-      const fy = gf.y - py;
-      const fdist = Math.hypot(fx, fy);
-      if (fdist < 0.78) { mx = 0; my = 0; break; }
-    }
-  }
-
-  // prevent moving into paintings; allow slight extra margin when moving backward/sideways
-  if ((mx !== 0 || my !== 0) && currentNow >= galleryCooldownUntil) {
-    for (let i = 0; i < galleryFrames.length; i++) {
-      const gf = galleryFrames[i];
-      const vx = gf.x - px;
-      const vy = gf.y - py;
-      const d = Math.hypot(vx, vy);
-      const preventRadius = (forward > 0) ? 0.77 : 0.8; // forward can enter trigger zone; backward cannot
-      if (d < preventRadius) {
-        const stepToward = mx * vx + my * vy; // positive if moving closer
-        if (stepToward > 0) { mx = 0; my = 0; break; }
+    /**
+     * Main game loop - updates game state and renders frame
+     * @param {number} now - Current timestamp
+     */
+    function gameLoop(now) {
+      // Calculate delta time with frame rate limiting
+      const dt = Math.min(3, (now - last) / (1000 / TARGET_FPS));
+      last = now;
+      
+      // =============================================================================
+      // UPDATE PHASE
+      // =============================================================================
+      
+      // Update player movement and check if cache needs invalidation
+      const playerMoved = updateMovement(dt);
+      if (playerMoved) {
+        invalidateCache(); // Invalidate rendering cache when player rotates
       }
+      
+      // Handle gallery painting interactions
+      updateGalleryInteractions(canvas, clearMovementKeys);
+      
+      // Handle floor item interactions (F key)
+      handleFloorInteractions(canvas);
+      
+      // =============================================================================
+      // RENDER PHASE
+      // =============================================================================
+      
+      // Render 3D scene
+      render();
+      
+      // Render development minimap
+      renderMinimap();
+      
+      // Schedule next frame
+      requestAnimationFrame(gameLoop);
     }
-  }
 
-  // simple collision
-  const nx = px + mx, ny = py + my;
-  if (!isWall(nx, py)) px = nx;
-  if (!isWall(px, ny)) py = ny;
+    // =============================================================================
+    // START APPLICATION
+    // =============================================================================
 
-  // interact: check for items near player (value 2 or 3) on 'f'
-  if (keys['f']) {
-    const tx = Math.floor(px), ty = Math.floor(py);
-    const v = map[ty]?.[tx];
-    if (v === 2) {
-      // Example: open a URL; in Electron you could spawn an app here
-      window.open('https://example.com', '_blank');
-    } else if (v === 3) {
-      alert('Trigger different app here (Electron/Node needed for local executable).');
-    }
-    // start a short cooldown to avoid immediate movement blocking near frames
-    galleryCooldownUntil = currentNow + 1500;
-    // try to refocus canvas so key input continues after popup/tab change
-    canvas.focus && canvas.focus();
-    keys['f'] = false;
-  }
+    // Start the game loop
+    requestAnimationFrame(gameLoop);
 
-  // proximity trigger for gallery frame
-  for (let i = 0; i < galleryFrames.length; i++) {
-    const gf = galleryFrames[i];
-    if (!gf.triggered) {
-      const d = Math.hypot(px - gf.x, py - gf.y);
-      if (d < 0.79) {
-        gf.triggered = true;
-        window.open(gf.url, '_blank');
-        clearMovementKeys();
-        // Suppress further stopping until player exits radius
-        gf.suppressStop = true;
-        // Also start a short cooldown to allow player to move away freely
-        galleryCooldownUntil = currentNow + 1500;
-        canvas.focus && canvas.focus();
-      }
-    }
-    // Once player exits a larger radius, re-enable stopping for future approaches
-    if (gf.suppressStop) {
-      const d2 = Math.hypot(px - gf.x, py - gf.y);
-      if (d2 > 1.05) gf.suppressStop = false;
-    }
-  }
-}
+    // =============================================================================
+    // DEBUG INFORMATION
+    // =============================================================================
 
-function render() {
-  // render scene to offscreen buffer first (grayscale)
-  octx.fillStyle = '#000';
-  octx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // per-column wall band for pillar constraint and depth
-  const yTop = new Int16Array(canvas.width);
-  const yBot = new Int16Array(canvas.width);
-  const colDepth = new Float32Array(canvas.width);
-  const colLineH = new Int16Array(canvas.width);
-  if (smoothDepth.length !== canvas.width) smoothDepth = new Float32Array(canvas.width);
-  if (smoothSize.length !== canvas.width) smoothSize = new Float32Array(canvas.width);
-
-  for (let x = 0; x < canvas.width; x++) {
-    const camX = (x / canvas.width) * 2 - 1;
-    const rayAngle = pa + camX * (fov / 2);
-
-    const hit = castRay(rayAngle);
-    const perpDist = hit.dist * Math.cos(rayAngle - pa);
-    const lineH = Math.min(canvas.height, Math.max(1, Math.round(canvas.height / perpDist)));
-
-    // walls are solid black; edges will be drawn in white on overlay
-    octx.fillStyle = '#000';
-
-    const y0 = Math.floor((canvas.height - lineH) / 2);
-    const y1 = y0 + lineH;
-    yTop[x] = y0;
-    yBot[x] = y1;
-    colDepth[x] = Math.min(1, Math.max(0, perpDist / 8)); // 0 near, 1 far
-    colLineH[x] = lineH;
-    octx.fillRect(x, y0, 1, lineH);
-
-  }
-
-  // Smooth wall bands slightly to make edges straighter
-  {
-    for (let pass = 0; pass < 2; pass++) {
-      for (let x = 1; x < canvas.width - 1; x++) {
-        yTop[x] = Math.round((yTop[x - 1] + yTop[x] + yTop[x + 1]) / 3);
-        yBot[x] = Math.round((yBot[x - 1] + yBot[x] + yBot[x + 1]) / 3);
-      }
-    }
-  }
-
-  // Smooth depth horizontally to avoid flicker and harsh transitions (exponential moving average per column)
-  for (let x = 0; x < canvas.width; x++) {
-    const d = colDepth[x];
-    const prev = smoothDepth[x] || d;
-    // Light smoothing: 70% current, 30% previous
-    smoothDepth[x] = prev * 0.3 + d * 0.7;
-  }
-
-  // Also smooth wall band height ratio as a second cue for distance (near walls produce taller bands)
-  for (let x = 0; x < canvas.width; x++) {
-    const h = Math.max(1, yBot[x] - yTop[x]);
-    const ratio = h / canvas.height; // 0..1
-    const prev = smoothSize[x] || ratio;
-    smoothSize[x] = prev * 0.3 + ratio * 0.7;
-  }
-
-  // Project room corners to screen columns; mark pillar columns precisely
-  const cornerCols = new Array(canvas.width).fill(false);
-  const frameCols = new Array(canvas.width).fill(false);
-  const pillarThickness = 2; // pixels
-  const halfFov = fov / 2;
-  for (let i = 0; i < nonCornerPoints.length; i++) {
-    const cp = nonCornerPoints[i];
-    const dx = (cp.x + 0.0001) - px; // epsilon to avoid exact axis issues
-    const dy = (cp.y + 0.0001) - py;
-    const cornerAngle = Math.atan2(dy, dx);
-    let delta = cornerAngle - pa;
-    // normalize to [-pi, pi]
-    delta = Math.atan2(Math.sin(delta), Math.cos(delta));
-    if (Math.abs(delta) > halfFov) continue; // outside view
-
-    // occlusion test: ray towards the corner should reach the corner first
-    const testHit = castRay(pa + delta);
-    const distCorner = Math.hypot(dx, dy);
-    if (testHit.dist + 0.03 < distCorner) continue; // occluded by nearer wall
-
-    // map angle to screen column
-    const colFloat = (delta / halfFov) * (canvas.width / 2) + (canvas.width / 2);
-    const col = Math.round(colFloat);
-    for (let t = -Math.floor(pillarThickness / 2); t <= Math.floor((pillarThickness - 1) / 2); t++) {
-      const cx = col + t;
-      if (cx >= 0 && cx < canvas.width) cornerCols[cx] = true;
-    }
-  }
-
-  // Project each gallery frame center to screen and mark a small width span
-  for (let i = 0; i < galleryFrames.length; i++) {
-    const gf = galleryFrames[i];
-    const dx = (gf.x + 0.0001) - px;
-    const dy = (gf.y + 0.0001) - py;
-    const angle = Math.atan2(dy, dx);
-    let delta = angle - pa;
-    delta = Math.atan2(Math.sin(delta), Math.cos(delta));
-    if (Math.abs(delta) <= halfFov) {
-      const testHit = castRay(pa + delta);
-      const dist = Math.hypot(dx, dy);
-      if (testHit.dist + 0.03 >= dist) {
-        const colFloat = (delta / halfFov) * (canvas.width / 2) + (canvas.width / 2);
-        const colCenter = Math.round(colFloat);
-        const thickness = 3;
-        for (let t = -Math.floor(thickness / 2); t <= Math.floor((thickness - 1) / 2); t++) {
-          const cx = colCenter + t;
-          if (cx >= 0 && cx < canvas.width) frameCols[cx] = true;
-        }
-      }
-    }
-  }
-
-  // update texture and render via three.js (no postprocess), or direct blit
-  if (useThree && texture) {
-    texture.needsUpdate = true;
-    renderer.render(scene, camera);
-  } else if (fctx) {
-    fctx.clearRect(0, 0, canvas.width, canvas.height);
-    fctx.drawImage(off, 0, 0);
-  }
-
-  // overlay: pillars, frames, variable-thickness edge lines (near = thicker)
-  pctx.clearRect(0, 0, post.width, post.height);
-
-
-  // pillars constrained to wall band for the flagged corner columns
-  pctx.fillStyle = '#fff';
-  for (let x = 0; x < canvas.width; x++) {
-    if (!cornerCols[x]) continue;
-    const y0 = Math.max(0, yTop[x]);
-    const y1 = Math.min(post.height, yBot[x]);
-    if (y1 > y0) pctx.fillRect(x, y0, 1, y1 - y0);
-  }
-
-  // draw gallery frame (white rectangle) on the wall band
-  // vertical sides
-  pctx.fillStyle = '#fff';
-  let frameLeft = null, frameRight = null, frameY0 = 0, frameY1 = 0;
-  for (let x = 0; x < canvas.width; x++) {
-    if (!frameCols[x]) continue;
-    const y0 = Math.max(0, yTop[x]);
-    const y1 = Math.min(post.height, yBot[x]);
-    // inset to look like a painting inside the wall band
-    const inset = Math.max(1, Math.floor((y1 - y0) * 0.2));
-    const sy0 = y0 + inset;
-    const sy1 = y1 - inset;
-    if (sy1 > sy0) pctx.fillRect(x, sy0, 1, sy1 - sy0);
-    if (frameLeft === null || x < frameLeft) frameLeft = x;
-    if (frameRight === null || x > frameRight) frameRight = x;
-    frameY0 = sy0; frameY1 = sy1;
-  }
-  // top and bottom edges if we have a span
-  if (frameLeft !== null && frameRight !== null && frameRight >= frameLeft) {
-    pctx.fillRect(frameLeft, frameY0, frameRight - frameLeft + 1, 1);
-    pctx.fillRect(frameLeft, frameY1, frameRight - frameLeft + 1, 1);
-  }
-
-  // draw white lines at the top and bottom of every wall column with tiered thickness (near=3px, far=1px)
-  for (let x = 0; x < canvas.width; x++) {
-    const topY = Math.max(0, Math.min(post.height - 1, yTop[x]));
-    const botY = Math.max(0, Math.min(post.height - 1, yBot[x] - 1));
-    const s = smoothSize[x]; // 0..1 height ratio; larger when closer
-    // three tiers using height ratio (robust cue): far=1px, mid=2px, near=3px
-    const thickness = (s > 0.66) ? 3 : (s > 0.33 ? 2 : 1);
-    // draw top band downward and bottom band upward
-    pctx.fillStyle = '#fff';
-    pctx.fillRect(x, Math.max(0, topY - Math.floor((thickness - 1) / 2)), 1, thickness);
-    pctx.fillRect(x, Math.max(0, botY - Math.floor(thickness / 2)), 1, thickness);
-  }
-}
-
-function renderMinimap() {
-  const w = mini.width, h = mini.height;
-  mctx.fillStyle = '#fff';
-  mctx.fillRect(0, 0, w, h);
-
-  const cellX = Math.floor(w / mapW);
-  const cellY = Math.floor(h / mapH);
-  const cell = Math.min(cellX, cellY);
-  const offsetX = Math.floor((w - cell * mapW) / 2);
-  const offsetY = Math.floor((h - cell * mapH) / 2);
-
-  // draw walls
-  mctx.fillStyle = '#000';
-  for (let y = 0; y < mapH; y++) {
-    for (let x = 0; x < mapW; x++) {
-      if (map[y][x] === 1) {
-        mctx.fillRect(offsetX + x * cell, offsetY + y * cell, cell, cell);
-      }
-    }
-  }
-
-  // draw gallery frames on minimap in white (limit to black/white palette)
-  mctx.fillStyle = '#fff';
-  for (let i = 0; i < galleryFrames.length; i++) {
-    const gf = galleryFrames[i];
-    const gx = offsetX + gf.x * cell;
-    const gy = offsetY + gf.y * cell;
-    const r = Math.max(2, Math.floor(cell * 0.2));
-    mctx.fillRect(gx - r, gy - r, r * 2, r * 2);
-  }
-
-  // (green corner markers removed)
-
-  // player
-  const pxp = offsetX + px * cell;
-  const pyp = offsetY + py * cell;
-  mctx.fillStyle = '#000';
-  mctx.beginPath();
-  mctx.arc(pxp, pyp, Math.max(2, cell * 0.2), 0, Math.PI * 2);
-  mctx.fill();
-  // facing line
-  const lx = pxp + Math.cos(pa) * cell * 0.8;
-  const ly = pyp + Math.sin(pa) * cell * 0.8;
-  mctx.beginPath();
-  mctx.moveTo(pxp, pyp);
-  mctx.lineTo(lx, ly);
-  mctx.strokeStyle = '#000';
-  mctx.lineWidth = 2;
-  mctx.stroke();
-}
-
-let last = performance.now();
-function loop(now) {
-  currentNow = now;
-  const dt = Math.min(3, (now - last) / (1000 / 15)); // normalize to ~15fps step
-  last = now;
-  update(dt);
-  render();
-  renderMinimap();
-  requestAnimationFrame(loop);
-}
-requestAnimationFrame(loop);
-</script>
+    console.log('🎮 84x28 Raycaster Gallery');
+    console.log('📁 Modular architecture loaded');
+    console.log('🎯 Target FPS:', TARGET_FPS);
+    console.log('🖼️ Gallery paintings loaded');
+    console.log('🗺️ World map initialized');
+    console.log('🎮 Controls: WASD/Arrow keys to move, QE to turn, F to interact');
+    console.log('🖼️ Look at paintings closely to trigger them');
+  </script>
 </body>
 </html>
