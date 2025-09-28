@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Controller</title>
+  <script src="/socket.io/socket.io.js"></script>
+  <style>
+    body { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: #111; color: white; font-family: sans-serif; }
+    .grid { display: grid; grid-template-columns: 50px 50px 50px; grid-gap: 10px; }
+    button { width: 50px; height: 50px; border-radius: 10px; }
+  </style>
+</head>
+<body>
+  <h2>Test</h2>
+  <div class="grid">
+    <div></div>
+    <button onclick="send('up')">⬆</button>
+    <div></div>
+    <button onclick="send('left')">⬅</button>
+    <div></div>
+    <button onclick="send('right')">➡</button>
+    <div></div>
+    <button onclick="send('down')">⬇</button>
+    <div></div>
+  </div>
+
+  <script>
+    const socket = io();
+    function send(dir) {
+      socket.emit("arrow", dir);
+    }
+  </script>
+</body>
+</html>

@@ -16,8 +16,11 @@
 	"dependencies": {
 		"@owowagency/flipdot-emu": "file:packages/owowagency-flipdot-emu-1.0.0.tgz",
 		"canvas": "^3.1.0",
+		"express": "^5.1.0",
 		"fft": "^0.2.1",
 		"fft.js": "^4.0.4",
-		"mic": "^2.1.2"
+		"mic": "^2.1.2",
+		"socket.io": "^4.8.1",
+		"socket.io-client": "^4.8.1"
 	}
 }
