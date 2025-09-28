@@ -142,3 +142,4 @@ export function computeNonCornerPoints() {
 // Pre-compute wall geometry for performance
 export const cornerPoints = computeWallCorners();
 export const nonCornerPoints = computeNonCornerPoints();
+

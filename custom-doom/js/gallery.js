@@ -107,3 +107,4 @@ export function removeGalleryFrame(index) {
   galleryFrames.splice(index, 1);
   return true;
 }
+

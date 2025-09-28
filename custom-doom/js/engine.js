@@ -423,3 +423,4 @@ export function renderMinimap() {
   mctx.lineWidth = 2;
   mctx.stroke();
 }
+

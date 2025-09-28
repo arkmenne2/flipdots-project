@@ -154,3 +154,4 @@ export function handleFloorInteractions(canvas) {
   
   return tileValue === 2 || tileValue === 3;
 }
+
