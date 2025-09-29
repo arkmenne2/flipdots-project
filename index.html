@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Three.js Hallway - 15 FPS WASD</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="hud">
+    <div>
+      WASD: move | Mouse: look (drag) | 15 FPS fixed step
+    </div>
+  </div>
+  <canvas id="canvas"></canvas>
+
+  <canvas id="bw" width="56" height="42" hidden></canvas>
+  <canvas id="preview" width="56" height="42"></canvas>
+
+  <script type="text/javascript">
+    // Capture the Three.js canvas, downscale to 84x24, threshold to B/W at 15 FPS
+    const TARGET_W = 56;
+    const TARGET_H = 42;
+    const FPS = 15;
+    const INTERVAL = 1000 / FPS;
+    let nextTick = performance.now() + INTERVAL;
+
+    const sourceCanvas = document.getElementById('canvas');
+    const bwCanvas = document.getElementById('bw');
+    const bwCtx = bwCanvas.getContext('2d', { willReadFrequently: true });
+    const previewCanvas = document.getElementById('preview');
+    const previewCtx = previewCanvas.getContext('2d');
+
+    // Sobel kernels (inspired by three.js Sobel example)
+    const KERNEL_GX = [
+      -1, 0, 1,
+      -2, 0, 2,
+      -1, 0, 1
+    ];
+    const KERNEL_GY = [
+       1,  2,  1,
+       0,  0,  0,
+      -1, -2, -1
+    ];
+
+    function sampleToBW() {
+      // Draw to 84x24 with nearest neighbor-like effect
+      bwCtx.imageSmoothingEnabled = false;
+      bwCtx.clearRect(0, 0, TARGET_W, TARGET_H);
+      const sw = sourceCanvas.width;
+      const sh = sourceCanvas.height;
+      if (sw === 0 || sh === 0) return null;
+      bwCtx.drawImage(sourceCanvas, 0, 0, sw, sh, 0, 0, TARGET_W, TARGET_H);
+      return bwCtx.getImageData(0, 0, TARGET_W, TARGET_H);
+    }
+
+    function sobelAndThreshold(img) {
+      // Sobel with non-maximum suppression for 1–2 px thin edges
+      const data = img.data;
+      const w = TARGET_W;
+      const h = TARGET_H;
+      const gray = new Uint8ClampedArray(w * h);
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const idx = (y * w + x) * 4;
+          const r = data[idx];
+          const g = data[idx + 1];
+          const b = data[idx + 2];
+          gray[y * w + x] = (r + g + b) / 3;
+        }
+      }
+      const gxBuf = new Float32Array(w * h);
+      const gyBuf = new Float32Array(w * h);
+      const magBuf = new Float32Array(w * h);
+      for (let y = 1; y < h - 1; y++) {
+        for (let x = 1; x < w - 1; x++) {
+          let gx = 0, gy = 0, k = 0;
+          for (let ky = -1; ky <= 1; ky++) {
+            for (let kx = -1; kx <= 1; kx++) {
+              const v = gray[(y + ky) * w + (x + kx)];
+              gx += v * KERNEL_GX[k];
+              gy += v * KERNEL_GY[k];
+              k++;
+            }
+          }
+          const mag = Math.hypot(gx, gy);
+          const idx1 = y * w + x;
+          gxBuf[idx1] = gx; gyBuf[idx1] = gy; magBuf[idx1] = mag;
+        }
+      }
+      const EDGE_TH = 40; // tune for visibility vs thinness
+      for (let y = 1; y < h - 1; y++) {
+        for (let x = 1; x < w - 1; x++) {
+          const i = y * w + x;
+          const mag = magBuf[i];
+          const gx = gxBuf[i];
+          const gy = gyBuf[i];
+          // Quantize gradient direction to 0,45,90,135 degrees
+          const angle = Math.atan2(gy, gx) * (180 / Math.PI);
+          let dir = 0; // 0: E-W, 1: NE-SW, 2: N-S, 3: NW-SE
+          const a = (angle + 180) % 180; // [0,180)
+          if ((a >= 0 && a < 22.5) || (a >= 157.5 && a < 180)) dir = 0;
+          else if (a >= 22.5 && a < 67.5) dir = 1;
+          else if (a >= 67.5 && a < 112.5) dir = 2;
+          else dir = 3;
+          let n1 = 0, n2 = 0;
+          if (dir === 0) { n1 = magBuf[i - 1]; n2 = magBuf[i + 1]; }
+          else if (dir === 1) { n1 = magBuf[i - w + 1]; n2 = magBuf[i + w - 1]; }
+          else if (dir === 2) { n1 = magBuf[i - w]; n2 = magBuf[i + w]; }
+          else { n1 = magBuf[i - w - 1]; n2 = magBuf[i + w + 1]; }
+          const keep = mag >= n1 && mag >= n2 && mag > EDGE_TH;
+          const di = i * 4;
+          const v = keep ? 255 : 0;
+          data[di] = v; data[di + 1] = v; data[di + 2] = v; data[di + 3] = 255;
+        }
+      }
+      // Clear borders
+      for (let x = 0; x < w; x++) {
+        let diTop = x * 4, diBot = ((h - 1) * w + x) * 4;
+        data[diTop] = data[diTop + 1] = data[diTop + 2] = 0; data[diTop + 3] = 255;
+        data[diBot] = data[diBot + 1] = data[diBot + 2] = 0; data[diBot + 3] = 255;
+      }
+      for (let y = 0; y < h; y++) {
+        let diL = (y * w) * 4, diR = (y * w + (w - 1)) * 4;
+        data[diL] = data[diL + 1] = data[diL + 2] = 0; data[diL + 3] = 255;
+        data[diR] = data[diR + 1] = data[diR + 2] = 0; data[diR + 3] = 255;
+      }
+      return img;
+    }
+
+    // Morphological close: dilate then erode with 8-neighborhood to connect gaps
+    function morphClose(img, iterations = 1) {
+      const w = TARGET_W;
+      const h = TARGET_H;
+      const src = img.data;
+      const tmp = new Uint8ClampedArray(src.length);
+      const out = new Uint8ClampedArray(src.length);
+      for (let iter = 0; iter < iterations; iter++) {
+        // Dilate (8-neighborhood)
+        tmp.set(src);
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const idx = (y * w + x) * 4;
+            if (src[idx] === 255) continue;
+            let white = false;
+            for (let dy = -1; dy <= 1 && !white; dy++) {
+              const ny = y + dy; if (ny < 0 || ny >= h) continue;
+              for (let dx = -1; dx <= 1; dx++) {
+                const nx = x + dx; if (nx < 0 || nx >= w) continue;
+                if (dx === 0 && dy === 0) continue;
+                const nidx = (ny * w + nx) * 4;
+                if (src[nidx] === 255) { white = true; break; }
+              }
+            }
+            if (white) {
+              tmp[idx] = tmp[idx + 1] = tmp[idx + 2] = 255; tmp[idx + 3] = 255;
+            }
+          }
+        }
+        // Erode (8-neighborhood)
+        out.set(tmp);
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const idx = (y * w + x) * 4;
+            if (tmp[idx] !== 255) continue;
+            let anyBlack = false;
+            for (let dy = -1; dy <= 1 && !anyBlack; dy++) {
+              const ny = y + dy; if (ny < 0 || ny >= h) continue;
+              for (let dx = -1; dx <= 1; dx++) {
+                const nx = x + dx; if (nx < 0 || nx >= w) continue;
+                if (dx === 0 && dy === 0) continue;
+                const nidx = (ny * w + nx) * 4;
+                if (tmp[nidx] !== 255) { anyBlack = true; break; }
+              }
+            }
+            if (anyBlack) {
+              out[idx] = out[idx + 1] = out[idx + 2] = 0; out[idx + 3] = 255;
+            }
+          }
+        }
+        src.set(out);
+      }
+      return img;
+    }
+
+    // Additional dilation to ensure fully solid lines
+    function dilate8(img, iterations = 1) {
+      const w = TARGET_W;
+      const h = TARGET_H;
+      const src = img.data;
+      const tmp = new Uint8ClampedArray(src.length);
+      for (let iter = 0; iter < iterations; iter++) {
+        tmp.set(src);
+        for (let y = 0; y < h; y++) {
+          for (let x = 0; x < w; x++) {
+            const idx = (y * w + x) * 4;
+            if (src[idx] === 255) continue;
+            let white = false;
+            for (let dy = -1; dy <= 1 && !white; dy++) {
+              const ny = y + dy; if (ny < 0 || ny >= h) continue;
+              for (let dx = -1; dx <= 1; dx++) {
+                const nx = x + dx; if (nx < 0 || nx >= w) continue;
+                if (dx === 0 && dy === 0) continue;
+                const nidx = (ny * w + nx) * 4;
+                if (src[nidx] === 255) { white = true; break; }
+              }
+            }
+            if (white) {
+              tmp[idx] = tmp[idx + 1] = tmp[idx + 2] = 255; tmp[idx + 3] = 255;
+            }
+          }
+        }
+        src.set(tmp);
+      }
+      return img;
+    }
+
+    function drawPreview(img) {
+      previewCtx.imageSmoothingEnabled = false;
+      previewCtx.clearRect(0, 0, TARGET_W, TARGET_H);
+      bwCtx.putImageData(img, 0, 0);
+      previewCtx.drawImage(bwCanvas, 0, 0);
+    }
+
+    function loop() {
+      const now = performance.now();
+      if (now < nextTick) {
+        setTimeout(loop, Math.max(0, nextTick - now));
+        return;
+      }
+      nextTick += INTERVAL;
+      const img = sampleToBW();
+      if (img) {
+        const processed = sobelAndThreshold(img);
+        drawPreview(processed);
+      }
+      const after = performance.now();
+      setTimeout(loop, Math.max(0, nextTick - after));
+    }
+    setTimeout(loop, INTERVAL);
+  </script>
+  <script type="module" src="src/main.js"></script>
+  
+</body>
+</html>
+
+
