@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>84x28 Raycaster Gallery</title>
+  <style>
+    /* Main game display container */
+    .stage { 
+      position: relative; 
+      width: 840px; 
+      height: 280px; 
+    }
+    
+    /* Primary raycaster canvas - scaled 10x for visibility */
+    #v { 
+      image-rendering: pixelated; 
+      width: 840px; 
+      height: 280px; 
+      background: #000; 
+      display: block; 
+    }
+    
+    /* Overlay canvas for UI elements (pillars, frames) */
+    #post { 
+      image-rendering: pixelated; 
+      width: 840px; 
+      height: 280px; 
+      position: absolute; 
+      left: 0; 
+      top: 0; 
+      pointer-events: none; 
+    }
+    
+    /* Development minimap */
+    #mini { 
+      image-rendering: pixelated; 
+      width: 256px; 
+      height: 256px; 
+      background: #222; 
+      margin-left: 24px; 
+    }
+    
+    /* Center layout and dark theme */
+    body { 
+      margin: 0; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      height: 100vh; 
+      background: #111; 
+    }
+
+    /* Loading indicator */
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-family: monospace;
+      font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <canvas id="v" width="84" height="28"></canvas>
+    <canvas id="post" width="84" height="28"></canvas>
+  </div>
+  <canvas id="mini" width="128" height="128" title="Minimap (dev)"></canvas>
+  
+  <div class="loading" id="loading">Loading...</div>
+
+  <!-- Three.js for hardware acceleration -->
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  
+  <!-- Main application script -->
+  <script type="module">
+    // =============================================================================
+    // MAIN APPLICATION ENTRY POINT
+    // =============================================================================
+    
+    import { TARGET_FPS } from './js/config.js';
+    import { updateMovement, handleFloorInteractions, clearMovementKeys } from './js/player.js';
+    import { updateGalleryInteractions } from './js/gallery.js';
+    import { initializeEngine, render, renderMinimap, invalidateCache } from './js/engine.js';
+
+    // =============================================================================
+    // INITIALIZATION
+    // =============================================================================
+
+    // Get canvas elements
+    const canvas = document.getElementById('v');
+    const post = document.getElementById('post');
+    const mini = document.getElementById('mini');
+    const loading = document.getElementById('loading');
+
+    // Initialize the rendering engine
+    initializeEngine(canvas, post, mini);
+
+    // Hide loading indicator
+    loading.style.display = 'none';
+
+    // =============================================================================
+    // GAME LOOP
+    // =============================================================================
+
+    let last = performance.now();
+
+    /**
+     * Main game loop - updates game state and renders frame
+     * @param {number} now - Current timestamp
+     */
+    function gameLoop(now) {
+      // Calculate delta time with frame rate limiting
+      const dt = Math.min(3, (now - last) / (1000 / TARGET_FPS));
+      last = now;
+      
+      // =============================================================================
+      // UPDATE PHASE
+      // =============================================================================
+      
+      // Update player movement and check if cache needs invalidation
+      const playerMoved = updateMovement(dt);
+      if (playerMoved) {
+        invalidateCache(); // Invalidate rendering cache when player rotates
+      }
+      
+      // Handle gallery painting interactions
+      updateGalleryInteractions(canvas, clearMovementKeys);
+      
+      // Handle floor item interactions (F key)
+      handleFloorInteractions(canvas);
+      
+      // =============================================================================
+      // RENDER PHASE
+      // =============================================================================
+      
+      // Render 3D scene
+      render();
+      
+      // Render development minimap
+      renderMinimap();
+      
+      // Schedule next frame
+      requestAnimationFrame(gameLoop);
+    }
+
+    // =============================================================================
+    // START APPLICATION
+    // =============================================================================
+
+    // Start the game loop
+    requestAnimationFrame(gameLoop);
+
+    // =============================================================================
+    // DEBUG INFORMATION
+    // =============================================================================
+
+    console.log('🎮 84x28 Raycaster Gallery');
+    console.log('📁 Modular architecture loaded');
+    console.log('🎯 Target FPS:', TARGET_FPS);
+    console.log('🖼️ Gallery paintings loaded');
+    console.log('🗺️ World map initialized');
+    console.log('🎮 Controls: WASD/Arrow keys to move, QE to turn, F to interact');
+    console.log('🖼️ Look at paintings closely to trigger them');
+  </script>
+</body>
+</html>
