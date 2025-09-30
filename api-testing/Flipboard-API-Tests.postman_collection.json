@@ -1,0 +1,346 @@
+{
+    "info": {
+        "name": "Flipboard Slack API Tests",
+        "description": "Test collection for the Flipboard Slack app API endpoints",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    },
+    "variable": [
+        {
+            "key": "base_url",
+            "value": "http://localhost:3000",
+            "type": "string"
+        }
+    ],
+    "item": [
+        {
+            "name": "Health Check",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/health",
+                    "host": ["{{base_url}}"],
+                    "path": ["health"]
+                },
+                "description": "Test if the server is running and healthy"
+            },
+            "response": []
+        },
+        {
+            "name": "Upload Flipboard - Valid GitHub URL",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/x-www-form-urlencoded"
+                    }
+                ],
+                "body": {
+                    "mode": "urlencoded",
+                    "urlencoded": [
+                        {
+                            "key": "token",
+                            "value": "test_token",
+                            "type": "text"
+                        },
+                        {
+                            "key": "team_id",
+                            "value": "T1234567890",
+                            "type": "text"
+                        },
+                        {
+                            "key": "team_domain",
+                            "value": "testteam",
+                            "type": "text"
+                        },
+                        {
+                            "key": "channel_id",
+                            "value": "C1234567890",
+                            "type": "text"
+                        },
+                        {
+                            "key": "channel_name",
+                            "value": "general",
+                            "type": "text"
+                        },
+                        {
+                            "key": "user_id",
+                            "value": "U1234567890",
+                            "type": "text"
+                        },
+                        {
+                            "key": "user_name",
+                            "value": "testuser",
+                            "type": "text"
+                        },
+                        {
+                            "key": "command",
+                            "value": "/upload-flipboard",
+                            "type": "text"
+                        },
+                        {
+                            "key": "text",
+                            "value": "https://github.com/electromalina/flipdots-project/tree/Doom-Flipboard-Jen/custom-doom",
+                            "type": "text"
+                        },
+                        {
+                            "key": "response_url",
+                            "value": "https://hooks.slack.com/commands/test",
+                            "type": "text"
+                        },
+                        {
+                            "key": "trigger_id",
+                            "value": "1234567890.1234567890.test",
+                            "type": "text"
+                        }
+                    ]
+                },
+                "url": {
+                    "raw": "{{base_url}}/slack/events",
+                    "host": ["{{base_url}}"],
+                    "path": ["slack", "events"]
+                },
+                "description": "Test the upload-flipboard command with a valid GitHub URL"
+            },
+            "response": []
+        },
+        {
+            "name": "Upload Flipboard - Invalid URL",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/x-www-form-urlencoded"
+                    }
+                ],
+                "body": {
+                    "mode": "urlencoded",
+                    "urlencoded": [
+                        {
+                            "key": "token",
+                            "value": "test_token",
+                            "type": "text"
+                        },
+                        {
+                            "key": "team_id",
+                            "value": "T1234567890",
+                            "type": "text"
+                        },
+                        {
+                            "key": "team_domain",
+                            "value": "testteam",
+                            "type": "text"
+                        },
+                        {
+                            "key": "channel_id",
+                            "value": "C1234567890",
+                            "type": "text"
+                        },
+                        {
+                            "key": "channel_name",
+                            "value": "general",
+                            "type": "text"
+                        },
+                        {
+                            "key": "user_id",
+                            "value": "U1234567890",
+                            "type": "text"
+                        },
+                        {
+                            "key": "user_name",
+                            "value": "testuser",
+                            "type": "text"
+                        },
+                        {
+                            "key": "command",
+                            "value": "/upload-flipboard",
+                            "type": "text"
+                        },
+                        {
+                            "key": "text",
+                            "value": "not-a-valid-github-url",
+                            "type": "text"
+                        },
+                        {
+                            "key": "response_url",
+                            "value": "https://hooks.slack.com/commands/test",
+                            "type": "text"
+                        },
+                        {
+                            "key": "trigger_id",
+                            "value": "1234567890.1234567890.test",
+                            "type": "text"
+                        }
+                    ]
+                },
+                "url": {
+                    "raw": "{{base_url}}/slack/events",
+                    "host": ["{{base_url}}"],
+                    "path": ["slack", "events"]
+                },
+                "description": "Test the upload-flipboard command with an invalid URL to check error handling"
+            },
+            "response": []
+        },
+        {
+            "name": "Upload Flipboard - Empty Text",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/x-www-form-urlencoded"
+                    }
+                ],
+                "body": {
+                    "mode": "urlencoded",
+                    "urlencoded": [
+                        {
+                            "key": "token",
+                            "value": "test_token",
+                            "type": "text"
+                        },
+                        {
+                            "key": "team_id",
+                            "value": "T1234567890",
+                            "type": "text"
+                        },
+                        {
+                            "key": "team_domain",
+                            "value": "testteam",
+                            "type": "text"
+                        },
+                        {
+                            "key": "channel_id",
+                            "value": "C1234567890",
+                            "type": "text"
+                        },
+                        {
+                            "key": "channel_name",
+                            "value": "general",
+                            "type": "text"
+                        },
+                        {
+                            "key": "user_id",
+                            "value": "U1234567890",
+                            "type": "text"
+                        },
+                        {
+                            "key": "user_name",
+                            "value": "testuser",
+                            "type": "text"
+                        },
+                        {
+                            "key": "command",
+                            "value": "/upload-flipboard",
+                            "type": "text"
+                        },
+                        {
+                            "key": "text",
+                            "value": "",
+                            "type": "text"
+                        },
+                        {
+                            "key": "response_url",
+                            "value": "https://hooks.slack.com/commands/test",
+                            "type": "text"
+                        },
+                        {
+                            "key": "trigger_id",
+                            "value": "1234567890.1234567890.test",
+                            "type": "text"
+                        }
+                    ]
+                },
+                "url": {
+                    "raw": "{{base_url}}/slack/events",
+                    "host": ["{{base_url}}"],
+                    "path": ["slack", "events"]
+                },
+                "description": "Test the upload-flipboard command with empty text to check validation"
+            },
+            "response": []
+        },
+        {
+            "name": "Upload Flipboard - @mention Format",
+            "request": {
+                "method": "POST",
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/x-www-form-urlencoded"
+                    }
+                ],
+                "body": {
+                    "mode": "urlencoded",
+                    "urlencoded": [
+                        {
+                            "key": "token",
+                            "value": "test_token",
+                            "type": "text"
+                        },
+                        {
+                            "key": "team_id",
+                            "value": "T1234567890",
+                            "type": "text"
+                        },
+                        {
+                            "key": "team_domain",
+                            "value": "testteam",
+                            "type": "text"
+                        },
+                        {
+                            "key": "channel_id",
+                            "value": "C1234567890",
+                            "type": "text"
+                        },
+                        {
+                            "key": "channel_name",
+                            "value": "general",
+                            "type": "text"
+                        },
+                        {
+                            "key": "user_id",
+                            "value": "U1234567890",
+                            "type": "text"
+                        },
+                        {
+                            "key": "user_name",
+                            "value": "testuser",
+                            "type": "text"
+                        },
+                        {
+                            "key": "command",
+                            "value": "/upload-flipboard",
+                            "type": "text"
+                        },
+                        {
+                            "key": "text",
+                            "value": "@https://github.com/electromalina/flipdots-project/tree/Doom-Flipboard-Jen/custom-doom",
+                            "type": "text"
+                        },
+                        {
+                            "key": "response_url",
+                            "value": "https://hooks.slack.com/commands/test",
+                            "type": "text"
+                        },
+                        {
+                            "key": "trigger_id",
+                            "value": "1234567890.1234567890.test",
+                            "type": "text"
+                        }
+                    ]
+                },
+                "url": {
+                    "raw": "{{base_url}}/slack/events",
+                    "host": ["{{base_url}}"],
+                    "path": ["slack", "events"]
+                },
+                "description": "Test the upload-flipboard command with @mention format URL"
+            },
+            "response": []
+        }
+    ]
+}

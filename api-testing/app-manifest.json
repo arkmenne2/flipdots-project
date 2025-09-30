@@ -1,0 +1,43 @@
+{
+    "display_information": {
+        "name": "Flipboard Uploader",
+        "description": "Upload and share flipboard GitHub repositories",
+        "background_color": "#2c3e50",
+        "long_description": "A Slack app that allows users to upload and share flipboard GitHub repositories using slash commands. Perfect for sharing Doom-style flipboard projects and other interactive displays."
+    },
+    "features": {
+        "bot_user": {
+            "display_name": "Flipboard Bot",
+            "always_online": false
+        },
+        "slash_commands": [
+            {
+                "command": "/upload-flipboard",
+                "description": "Upload a flipboard GitHub repository",
+                "usage_hint": "https://github.com/user/repo",
+                "should_escape": false
+            }
+        ]
+    },
+    "oauth_config": {
+        "scopes": {
+            "bot": [
+                "commands",
+                "chat:write",
+                "chat:write.public"
+            ]
+        }
+    },
+    "settings": {
+        "event_subscriptions": {
+            "bot_events": []
+        },
+        "interactivity": {
+            "is_enabled": true
+        },
+        "org_deploy_enabled": false,
+        "socket_mode_enabled": false,
+        "is_hosted": false,
+        "token_rotation_enabled": false
+    }
+}
