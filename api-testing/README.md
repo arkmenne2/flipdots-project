@@ -23,11 +23,13 @@ npm install
 Create a `.env` file with your Slack app credentials:
 
 ```env
-SLACK_BOT_TOKEN=xapp-1-A09H2EVHB4J-9593883263681-8391448d646940b17c0002fc472e933fa5d787874255a9db3b708b4b676bbc72
+SLACK_BOT_TOKEN=your_slack_bot_token_here
 SLACK_SIGNING_SECRET=your_slack_signing_secret_here
 PORT=3000
 GITHUB_TOKEN=your_github_token_here
 ```
+
+Important: Never commit real secrets to git. Create a local `.env` file and ensure it is ignored by git.
 
 ### 3. Create Slack App
 
