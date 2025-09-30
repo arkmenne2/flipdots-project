@@ -39,7 +39,7 @@ export default function Features() {
         <div className="mb-16 flex justify-start">
           <div className="inline-block bg-black py-6 px-8 rounded-lg">
             <h2 className="font-heading text-4xl sm:text-5xl font-bold text-white">
-              KEY FEATURES
+              HOW IT WORKS?
             </h2>
           </div>
         </div>
