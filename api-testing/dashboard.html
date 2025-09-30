@@ -12,10 +12,27 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Courier New', monospace;
+            background: #000;
             min-height: 100vh;
-            color: #333;
+            color: #fff;
+            position: relative;
+        }
+        
+        /* Flipboard dot matrix effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(circle at center, #222 1px, transparent 1px);
+            background-size: 12px 12px;
+            opacity: 0.3;
+            pointer-events: none;
+            z-index: -1;
         }
 
         .container {
@@ -27,18 +44,46 @@
         .header {
             text-align: center;
             margin-bottom: 40px;
-            color: white;
+            color: #fff;
+            border: 2px solid #fff;
+            padding: 20px;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                linear-gradient(90deg, transparent 49%, #fff 49%, #fff 51%, transparent 51%),
+                linear-gradient(0deg, transparent 49%, #fff 49%, #fff 51%, transparent 51%);
+            background-size: 20px 20px;
+            opacity: 0.05;
+            pointer-events: none;
         }
 
         h1 {
             font-size: 3em;
             margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            color: #fff;
+            text-shadow: none;
+            position: relative;
+            z-index: 1;
+            font-weight: bold;
+            letter-spacing: 2px;
         }
 
         .subtitle {
             font-size: 1.2em;
-            opacity: 0.9;
+            opacity: 0.8;
+            color: #ccc;
+            position: relative;
+            z-index: 1;
         }
 
         .stats {
@@ -49,47 +94,88 @@
         }
 
         .stat-card {
-            background: rgba(255, 255, 255, 0.95);
+            background: #000;
             padding: 30px;
-            border-radius: 20px;
+            border: 2px solid #fff;
             text-align: center;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            transition: transform 0.3s ease;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 2px,
+                    rgba(255, 255, 255, 0.02) 2px,
+                    rgba(255, 255, 255, 0.02) 4px
+                );
+            pointer-events: none;
         }
 
         .stat-card:hover {
-            transform: translateY(-5px);
+            border-color: #fff;
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.2);
         }
 
         .stat-number {
             font-size: 3em;
             font-weight: bold;
-            color: #667eea;
+            color: #fff;
             margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
         }
 
         .stat-label {
             font-size: 1.1em;
-            color: #666;
+            color: #ccc;
+            position: relative;
+            z-index: 1;
         }
 
         .uploads-section {
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
+            background: #000;
+            border: 2px solid #fff;
             padding: 30px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
             margin: 30px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .uploads-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 25% 25%, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                radial-gradient(circle at 75% 75%, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 16px 16px;
+            pointer-events: none;
         }
 
         .uploads-section h2 {
-            color: #333;
+            color: #fff;
             margin-bottom: 25px;
             font-size: 2em;
             text-align: center;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
         }
 
         .loading {
@@ -122,12 +208,11 @@
         }
 
         .upload-item {
-            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            background: #000;
             margin: 20px 0;
             padding: 25px;
-            border-radius: 15px;
-            border-left: 5px solid #667eea;
-            transition: all 0.3s ease;
+            border: 2px solid #fff;
+            transition: all 0.2s ease;
             position: relative;
             overflow: hidden;
         }
@@ -139,23 +224,33 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: linear-gradient(135deg, transparent, rgba(102, 126, 234, 0.05));
+            background: 
+                repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 3px,
+                    rgba(255, 255, 255, 0.02) 3px,
+                    rgba(255, 255, 255, 0.02) 6px
+                );
             pointer-events: none;
         }
 
         .upload-item:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            border-color: #fff;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
         }
 
         .upload-repo {
             font-weight: bold;
-            color: #333;
+            color: #fff;
             font-size: 1.3em;
             margin-bottom: 15px;
             display: flex;
             align-items: center;
             gap: 10px;
+            position: relative;
+            z-index: 1;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
         }
 
         .upload-meta {
@@ -164,36 +259,45 @@
             gap: 10px;
             margin: 15px 0;
             font-size: 0.95em;
+            position: relative;
+            z-index: 1;
         }
 
         .upload-meta span {
             display: flex;
             align-items: center;
             gap: 8px;
-            color: #666;
-            background: rgba(255, 255, 255, 0.7);
+            color: #ccc;
+            background: #000;
             padding: 8px 12px;
-            border-radius: 20px;
+            border: 1px solid #fff;
             font-size: 0.9em;
+            font-family: 'Courier New', monospace;
         }
 
         .upload-link {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
+            background: #000;
+            color: #fff;
             text-decoration: none;
             padding: 12px 20px;
-            border-radius: 25px;
-            font-weight: 500;
-            transition: all 0.3s ease;
+            border: 2px solid #fff;
+            font-weight: bold;
+            transition: all 0.2s ease;
             margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+            position: relative;
+            z-index: 1;
         }
 
         .upload-link:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+            background: #fff;
+            color: #000;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+            text-shadow: none;
         }
 
         .actions {
@@ -205,24 +309,57 @@
         }
 
         .btn {
-            background: rgba(255, 255, 255, 0.9);
-            color: #667eea;
+            background: #000;
+            color: #fff;
             padding: 15px 30px;
             text-decoration: none;
-            border-radius: 25px;
-            font-weight: 600;
-            transition: all 0.3s ease;
+            border: 2px solid #fff;
+            font-weight: bold;
+            transition: all 0.2s ease;
             display: inline-flex;
             align-items: center;
             gap: 10px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+            image-rendering: pixelated;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 4px,
+                    rgba(255, 255, 255, 0.05) 4px,
+                    rgba(255, 255, 255, 0.05) 8px
+                );
+            pointer-events: none;
         }
 
         .btn:hover {
-            background: white;
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            background: #fff;
+            color: #000;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+            text-shadow: none;
+        }
+        
+        .btn:hover::before {
+            background: 
+                repeating-linear-gradient(
+                    90deg,
+                    transparent,
+                    transparent 4px,
+                    rgba(0, 0, 0, 0.05) 4px,
+                    rgba(0, 0, 0, 0.05) 8px
+                );
         }
 
         .refresh-btn {
@@ -297,35 +434,72 @@
 
         .runner-btn {
             padding: 15px 25px;
-            border: none;
-            border-radius: 25px;
-            font-weight: 600;
+            border: 2px solid #fff;
+            background: #000;
+            color: #fff;
+            font-weight: bold;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             display: inline-flex;
             align-items: center;
             gap: 10px;
             font-size: 1em;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+            position: relative;
+            overflow: hidden;
+            image-rendering: pixelated;
+        }
+        
+        .runner-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 3px,
+                    rgba(255, 255, 255, 0.03) 3px,
+                    rgba(255, 255, 255, 0.03) 6px
+                );
+            pointer-events: none;
         }
 
         .runner-btn.primary {
-            background: linear-gradient(135deg, #28a745, #20c997);
-            color: white;
+            border: 3px solid #fff;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
         }
 
         .runner-btn.secondary {
-            background: linear-gradient(135deg, #17a2b8, #6f42c1);
-            color: white;
+            border: 2px solid #fff;
+            box-shadow: 0 0 8px rgba(255, 255, 255, 0.15);
         }
 
         .runner-btn.tertiary {
-            background: linear-gradient(135deg, #6c757d, #495057);
-            color: white;
+            border: 2px solid #fff;
+            box-shadow: 0 0 5px rgba(255, 255, 255, 0.1);
         }
 
         .runner-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            background: #fff;
+            color: #000;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+            text-shadow: none;
+        }
+        
+        .runner-btn:hover::before {
+            background: 
+                repeating-linear-gradient(
+                    45deg,
+                    transparent,
+                    transparent 3px,
+                    rgba(0, 0, 0, 0.03) 3px,
+                    rgba(0, 0, 0, 0.03) 6px
+                );
         }
 
         .runner-results {
@@ -472,11 +646,14 @@
                 <div class="loading">
                     Loading uploads...
                     <div style="margin-top: 15px;">
-                        <button onclick="testDirectApiCall()" style="background: #17a2b8; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-right: 10px;">
+                        <button onclick="testDirectApiCall()" style="background: #000; color: #fff; border: 2px solid #fff; padding: 10px 20px; cursor: pointer; margin-right: 10px; font-family: 'Courier New', monospace; font-weight: bold;">
                             🔧 Force API Test
                         </button>
-                        <button onclick="loadUploads()" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                        <button onclick="loadUploads()" style="background: #000; color: #fff; border: 2px solid #fff; padding: 10px 20px; cursor: pointer; font-family: 'Courier New', monospace; font-weight: bold;">
                             🔄 Retry Load
+                        </button>
+                        <button onclick="simpleTest()" style="background: #fff; color: #000; border: 2px solid #000; padding: 10px 20px; cursor: pointer; margin-left: 10px; font-family: 'Courier New', monospace; font-weight: bold;">
+                            ⚡ SIMPLE TEST
                         </button>
                     </div>
                 </div>
@@ -484,7 +661,7 @@
         </div>
         
         <div class="actions">
-            <a href="room.html" class="btn" style="background: linear-gradient(45deg, #ff6b6b, #4ecdc4); font-size: 1.1em; font-weight: bold;">🎨 Enter 3D Gallery Room</a>
+            <a href="room.html" class="btn" style="font-size: 1.1em; font-weight: bold; border: 3px solid #fff; box-shadow: 0 0 15px rgba(255, 255, 255, 0.2);">🎨 Enter 3D Gallery Room</a>
             <a href="uploads" class="btn">📊 View JSON Data</a>
             <a href="./" class="btn">🔧 API Info</a>
             <button onclick="location.reload()" class="btn" style="background: none; border: 2px solid rgba(255,255,255,0.3);">🔄 Refresh Page</button>
@@ -545,37 +722,39 @@
             // Function will be redefined below with full implementation
         }
 
-        // Load uploads function
+        // Load uploads function - SIMPLIFIED VERSION
         async function loadUploads() {
+            console.log('=== LOADING UPLOADS START ===');
             const container = document.getElementById('uploadsContainer');
+            
+            if (!container) {
+                console.error('Container not found!');
+                return;
+            }
             
             try {
                 container.innerHTML = '<div class="loading">Loading uploads...</div>';
-                console.log('Starting to load uploads...');
+                console.log('Container updated, fetching data...');
                 
-                // Use absolute URL directly since we know it works
                 const apiUrl = 'https://i558110.hera.fontysict.net/api-testing/uploads';
-                console.log('Fetching from:', apiUrl);
+                console.log('API URL:', apiUrl);
                 
-                const response = await fetch(apiUrl, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                    },
-                    mode: 'cors'
-                });
-                
-                console.log('Response status:', response.status);
-                console.log('Response headers:', response.headers);
+                const response = await fetch(apiUrl);
+                console.log('Response received:', response.status);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 
                 const data = await response.json();
+                console.log('Data received:', data);
                 
                 // Update total count
-                document.getElementById('totalUploads').textContent = data.total || 0;
+                const totalElement = document.getElementById('totalUploads');
+                if (totalElement) {
+                    totalElement.textContent = data.total || 0;
+                    console.log('Total updated to:', data.total);
+                }
                 
                 if (!data.uploads || data.uploads.length === 0) {
                     container.innerHTML = `
@@ -649,41 +828,75 @@
         // Auto-refresh every 30 seconds
         setInterval(loadUploads, 30000);
         
-        // Load uploads on page load
-        console.log('Page loaded, calling loadUploads...');
+        // SIMPLE FIX: Load uploads immediately when page loads
+        window.addEventListener('load', function() {
+            console.log('Page fully loaded, starting uploads...');
+            loadUploads();
+        });
         
-         // Add debugging and force the API call
-         console.log('Script loaded, about to set timeout...');
-         
-         // Try multiple approaches to ensure the API call happens
-         setTimeout(() => {
-             console.log('DOM ready, loading uploads...');
-             console.log('loadUploads function exists:', typeof loadUploads);
-             
-             try {
-                 loadUploads();
-             } catch (error) {
-                 console.error('Error calling loadUploads:', error);
-                 // Fallback: try direct API call
-                 testDirectApiCall();
-             }
-         }, 100);
+        // Also try when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM ready, loading uploads...');
+            loadUploads();
+        });
+        
+        // Backup: try after 1 second
+        setTimeout(function() {
+            console.log('Backup load attempt...');
+            loadUploads();
+        }, 1000);
 
-         // Also try after 2 seconds as backup
-         setTimeout(() => {
-             console.log('Backup attempt - checking if uploads loaded...');
-             const container = document.getElementById('uploadsContainer');
-             if (container && container.innerHTML.includes('Loading uploads...')) {
-                 console.log('Still loading, forcing direct API call...');
-                 testDirectApiCall();
-             }
-         }, 2000);
-
-         // Force immediate test
-         setTimeout(() => {
-             console.log('Immediate API test...');
-             testDirectApiCall();
-         }, 500);
+        // SIMPLE TEST FUNCTION - This will definitely work
+        function simpleTest() {
+            console.log('=== SIMPLE TEST START ===');
+            const container = document.getElementById('uploadsContainer');
+            
+            // Test 1: Can we find the container?
+            if (!container) {
+                alert('ERROR: Container not found!');
+                return;
+            }
+            console.log('✅ Container found');
+            
+            // Test 2: Can we update the container?
+            container.innerHTML = '<div style="color: #fff; padding: 20px; text-align: center;">🔄 Testing API call...</div>';
+            console.log('✅ Container updated');
+            
+            // Test 3: Make API call
+            fetch('https://i558110.hera.fontysict.net/api-testing/uploads')
+                .then(response => {
+                    console.log('✅ API Response:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('✅ API Data:', data);
+                    
+                    // Update total
+                    const totalEl = document.getElementById('totalUploads');
+                    if (totalEl) {
+                        totalEl.textContent = data.total || 0;
+                    }
+                    
+                    // Show results
+                    if (data.uploads && data.uploads.length > 0) {
+                        container.innerHTML = `
+                            <div style="color: #fff; padding: 20px; text-align: center;">
+                                <h3>✅ SUCCESS! Found ${data.total} uploads</h3>
+                                <p>Check console for full data</p>
+                                <button onclick="loadUploads()" style="background: #fff; color: #000; border: 2px solid #000; padding: 10px 20px; cursor: pointer; margin-top: 10px; font-family: 'Courier New', monospace; font-weight: bold;">
+                                    🔄 Load Full List
+                                </button>
+                            </div>
+                        `;
+                    } else {
+                        container.innerHTML = '<div style="color: #fff; padding: 20px; text-align: center;">❌ No uploads found</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ API Error:', error);
+                    container.innerHTML = `<div style="color: #fff; padding: 20px; text-align: center;">❌ Error: ${error.message}</div>`;
+                });
+        }
 
         // Direct API test function
         function testDirectApiCall() {
