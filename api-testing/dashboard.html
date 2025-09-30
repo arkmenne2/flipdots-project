@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎮 Flipboard Upload Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        h1 {
+            font-size: 3em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 40px 0;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-number {
+            font-size: 3em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            font-size: 1.1em;
+            color: #666;
+        }
+
+        .uploads-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin: 30px 0;
+        }
+
+        .uploads-section h2 {
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 2em;
+            text-align: center;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+
+        .loading::before {
+            content: "🔄";
+            display: inline-block;
+            animation: spin 2s linear infinite;
+            margin-right: 10px;
+            font-size: 1.5em;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .upload-item {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            margin: 20px 0;
+            padding: 25px;
+            border-radius: 15px;
+            border-left: 5px solid #667eea;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-item::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, transparent, rgba(102, 126, 234, 0.05));
+            pointer-events: none;
+        }
+
+        .upload-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .upload-repo {
+            font-weight: bold;
+            color: #333;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .upload-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+            font-size: 0.95em;
+        }
+
+        .upload-meta span {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #666;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+
+        .upload-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            text-decoration: none;
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-top: 15px;
+        }
+
+        .upload-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .actions {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin: 40px 0;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.9);
+            color: #667eea;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .btn:hover {
+            background: white;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .refresh-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 20px;
+            border-radius: 50%;
+            font-size: 1.5em;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .refresh-btn:hover {
+            transform: scale(1.1) rotate(180deg);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #667eea;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .empty-state p {
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+
+        code {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .code-runner-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin: 30px 0;
+        }
+
+        .code-runner-section h2 {
+            color: #333;
+            margin-bottom: 25px;
+            font-size: 2em;
+            text-align: center;
+        }
+
+        .runner-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .runner-btn {
+            padding: 15px 25px;
+            border: none;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1em;
+        }
+
+        .runner-btn.primary {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+        }
+
+        .runner-btn.secondary {
+            background: linear-gradient(135deg, #17a2b8, #6f42c1);
+            color: white;
+        }
+
+        .runner-btn.tertiary {
+            background: linear-gradient(135deg, #6c757d, #495057);
+            color: white;
+        }
+
+        .runner-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .runner-results {
+            margin: 20px 0;
+            padding: 20px;
+            border-radius: 15px;
+        }
+
+        .runner-results.success {
+            background: linear-gradient(135deg, #d4edda, #c3e6cb);
+            color: #155724;
+        }
+
+        .runner-results.error {
+            background: linear-gradient(135deg, #f8d7da, #f5c6cb);
+            color: #721c24;
+        }
+
+        .runner-results.info {
+            background: linear-gradient(135deg, #d1ecf1, #bee5eb);
+            color: #0c5460;
+        }
+
+        .individual-repo {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            margin: 15px 0;
+            padding: 20px;
+            border-radius: 15px;
+            border-left: 5px solid #28a745;
+        }
+
+        .individual-repo h4 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .individual-repo .repo-meta {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+        }
+
+        .individual-repo .repo-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .individual-repo .repo-buttons button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .repo-btn-run {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+        }
+
+        .repo-btn-view {
+            background: linear-gradient(135deg, #17a2b8, #6f42c1);
+            color: white;
+        }
+
+        .repo-btn-files {
+            background: linear-gradient(135deg, #6c757d, #495057);
+            color: white;
+        }
+
+        .individual-repo .repo-buttons button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            h1 {
+                font-size: 2.5em;
+            }
+
+            .upload-meta {
+                grid-template-columns: 1fr;
+            }
+
+            .actions {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn {
+                width: 250px;
+                justify-content: center;
+            }
+
+            .runner-actions {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .runner-btn {
+                width: 250px;
+                justify-content: center;
+            }
+
+            .individual-repo .repo-buttons {
+                flex-direction: column;
+            }
+
+            .individual-repo .repo-buttons button {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎮 Flipboard Upload Dashboard</h1>
+            <p class="subtitle">Track and manage your GitHub repository uploads</p>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="totalUploads">-</div>
+                <div class="stat-label">Total Uploads</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="currentDate">-</div>
+                <div class="stat-label">Today</div>
+            </div>
+        </div>
+        
+        <div class="uploads-section">
+            <h2>📋 Recent Uploads</h2>
+            <div id="uploadsContainer">
+                <div class="loading">
+                    Loading uploads...
+                    <div style="margin-top: 15px;">
+                        <button onclick="testDirectApiCall()" style="background: #17a2b8; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-right: 10px;">
+                            🔧 Force API Test
+                        </button>
+                        <button onclick="loadUploads()" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                            🔄 Retry Load
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="actions">
+            <a href="uploads" class="btn">📊 View JSON Data</a>
+            <a href="./" class="btn">🔧 API Info</a>
+            <button onclick="location.reload()" class="btn" style="background: none; border: 2px solid rgba(255,255,255,0.3);">🔄 Refresh Page</button>
+        </div>
+        
+        <div class="code-runner-section">
+            <h2>🚀 Run Repository Code</h2>
+            <div class="runner-actions">
+                <button onclick="runAllRepos()" class="runner-btn primary">🎮 Run All 6 Repositories</button>
+                <button onclick="runLatestRepo()" class="runner-btn secondary">⚡ Run Latest Repository</button>
+                <button onclick="showIndividualButtons()" class="runner-btn tertiary">📋 Show Individual Controls</button>
+            </div>
+            <div id="runnerResults"></div>
+            <div id="individualControls"></div>
+        </div>
+    </div>
+
+    <button class="refresh-btn" onclick="loadUploads()" title="Refresh uploads">
+        🔄
+    </button>
+
+    <script>
+        // Set current date and test functions
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('currentDate').textContent = new Date().toLocaleDateString();
+            console.log('DOM loaded, testing functions...');
+            console.log('showIndividualButtons function exists:', typeof showIndividualButtons);
+        });
+
+        // Declare all button functions first to ensure they're available
+        function runAllRepos() {
+            console.log('runAllRepos called');
+            // Function will be redefined below with full implementation
+        }
+
+        function runLatestRepo() {
+            console.log('runLatestRepo called');
+            // Function will be redefined below with full implementation
+        }
+
+        async function showIndividualButtons() {
+            console.log('showIndividualButtons called');
+            // Function will be redefined below with full implementation
+        }
+
+        function runSingleRepo(githubUrl, repoName) {
+            console.log('runSingleRepo called');
+            // Function will be redefined below with full implementation
+        }
+
+        function openRepo(githubUrl) {
+            console.log('openRepo called');
+            // Function will be redefined below with full implementation
+        }
+
+        function openRawFiles(githubUrl) {
+            console.log('openRawFiles called');
+            // Function will be redefined below with full implementation
+        }
+
+        // Load uploads function
+        async function loadUploads() {
+            const container = document.getElementById('uploadsContainer');
+            
+            try {
+                container.innerHTML = '<div class="loading">Loading uploads...</div>';
+                console.log('Starting to load uploads...');
+                
+                // Use absolute URL directly since we know it works
+                const apiUrl = 'https://i558110.hera.fontysict.net/api-testing/uploads';
+                console.log('Fetching from:', apiUrl);
+                
+                const response = await fetch(apiUrl, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                    },
+                    mode: 'cors'
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                // Update total count
+                document.getElementById('totalUploads').textContent = data.total || 0;
+                
+                if (!data.uploads || data.uploads.length === 0) {
+                    container.innerHTML = `
+                        <div class="empty-state">
+                            <h3>🎯 No uploads yet</h3>
+                            <p>Use <code>/upload-flipboard</code> in Slack to get started!</p>
+                            <p><strong>Example:</strong> <code>/upload-flipboard https://github.com/user/repo</code></p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Display uploads
+                const uploadsHtml = data.uploads.slice(0, 10).map(upload => {
+                    const date = new Date(upload.timestamp);
+                    const formattedDate = date.toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    
+                    return `
+                        <div class="upload-item">
+                            <div class="upload-repo">
+                                📁 ${escapeHtml(upload.repository)}
+                            </div>
+                            <div class="upload-meta">
+                                <span>🌿 ${escapeHtml(upload.branch)}</span>
+                                <span>👤 ${escapeHtml(upload.slack_user)}</span>
+                                <span>💬 ${escapeHtml(upload.slack_channel)}</span>
+                                <span>📅 ${formattedDate}</span>
+                            </div>
+                            <a href="${escapeHtml(upload.github_url)}" target="_blank" class="upload-link">
+                                🔗 View on GitHub
+                            </a>
+                        </div>
+                    `;
+                }).join('');
+                
+                container.innerHTML = uploadsHtml;
+                
+            } catch (error) {
+                console.error('Error loading uploads:', error);
+                console.error('Full error details:', {
+                    message: error.message,
+                    stack: error.stack,
+                    name: error.name
+                });
+                
+                container.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Error Loading Uploads</h3>
+                        <p><strong>Error:</strong> ${escapeHtml(error.message)}</p>
+                        <p><strong>Debug:</strong> Check browser console (F12) for more details</p>
+                        <p><strong>API URL:</strong> <a href="./uploads" target="_blank" style="color: white;">./uploads</a></p>
+                        <button onclick="loadUploads()" style="background: white; color: #e74c3c; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;">🔄 Retry</button>
+                    </div>
+                `;
+            }
+        }
+        
+        // Utility function to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Auto-refresh every 30 seconds
+        setInterval(loadUploads, 30000);
+        
+        // Load uploads on page load
+        console.log('Page loaded, calling loadUploads...');
+        
+         // Add debugging and force the API call
+         console.log('Script loaded, about to set timeout...');
+         
+         // Try multiple approaches to ensure the API call happens
+         setTimeout(() => {
+             console.log('DOM ready, loading uploads...');
+             console.log('loadUploads function exists:', typeof loadUploads);
+             
+             try {
+                 loadUploads();
+             } catch (error) {
+                 console.error('Error calling loadUploads:', error);
+                 // Fallback: try direct API call
+                 testDirectApiCall();
+             }
+         }, 100);
+
+         // Also try after 2 seconds as backup
+         setTimeout(() => {
+             console.log('Backup attempt - checking if uploads loaded...');
+             const container = document.getElementById('uploadsContainer');
+             if (container && container.innerHTML.includes('Loading uploads...')) {
+                 console.log('Still loading, forcing direct API call...');
+                 testDirectApiCall();
+             }
+         }, 2000);
+
+         // Force immediate test
+         setTimeout(() => {
+             console.log('Immediate API test...');
+             testDirectApiCall();
+         }, 500);
+
+        // Direct API test function
+        function testDirectApiCall() {
+            console.log('Testing direct API call...');
+            fetch('https://i558110.hera.fontysict.net/api-testing/uploads')
+                .then(response => {
+                    console.log('Direct API response:', response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Direct API data:', data);
+                    document.getElementById('totalUploads').textContent = data.total || 0;
+                    
+                    const container = document.getElementById('uploadsContainer');
+                    if (data.uploads && data.uploads.length > 0) {
+                        container.innerHTML = `<p style="color: #28a745; padding: 20px; text-align: center;">✅ Found ${data.total} uploads! Check console for details.</p>`;
+                    } else {
+                        container.innerHTML = `<p style="color: #dc3545; padding: 20px; text-align: center;">❌ No uploads found</p>`;
+                    }
+                })
+                .catch(error => {
+                    console.error('Direct API error:', error);
+                    document.getElementById('uploadsContainer').innerHTML = `<p style="color: #dc3545; padding: 20px; text-align: center;">❌ API Error: ${error.message}</p>`;
+                });
+        }
+
+        // Store uploads data globally for code runner
+        let uploadsData = null;
+
+        // Declare functions in global scope
+        async function runAllRepos() {
+            const results = document.getElementById('runnerResults');
+            results.innerHTML = '<div class="runner-results info">🔄 Loading all repositories...</div>';
+            
+            try {
+                // Get uploads data if not already loaded
+                if (!uploadsData) {
+                    await loadUploadsData();
+                }
+                
+                if (!uploadsData || !uploadsData.uploads || uploadsData.uploads.length === 0) {
+                    results.innerHTML = '<div class="runner-results error">❌ No repositories found to run</div>';
+                    return;
+                }
+                
+                results.innerHTML = `<div class="runner-results info">🚀 Opening all ${uploadsData.uploads.length} repositories in new tabs...</div>`;
+                
+                // Open each repository in a new tab
+                uploadsData.uploads.forEach((upload, index) => {
+                    setTimeout(() => {
+                        const runUrl = convertToRunUrl(upload.github_url);
+                        window.open(runUrl, `_blank_repo_${index}`);
+                    }, index * 1000); // Stagger opening to avoid popup blocking
+                });
+                
+                results.innerHTML = `<div class="runner-results success">✅ Opened ${uploadsData.uploads.length} repository tabs! Check your browser for new tabs.</div>`;
+                
+            } catch (error) {
+                results.innerHTML = `<div class="runner-results error">❌ Error running repositories: ${error.message}</div>`;
+            }
+        }
+
+        // Function to run latest repository only
+        async function runLatestRepo() {
+            const results = document.getElementById('runnerResults');
+            results.innerHTML = '<div class="runner-results info">🔄 Loading latest repository...</div>';
+            
+            try {
+                // Get uploads data if not already loaded
+                if (!uploadsData) {
+                    await loadUploadsData();
+                }
+                
+                if (!uploadsData || !uploadsData.uploads || uploadsData.uploads.length === 0) {
+                    results.innerHTML = '<div class="runner-results error">❌ No repositories found</div>';
+                    return;
+                }
+                
+                const latestUpload = uploadsData.uploads[0]; // First item is latest
+                const runUrl = convertToRunUrl(latestUpload.github_url);
+                
+                results.innerHTML = `
+                    <div class="runner-results info">
+                        <p>⚡ Running latest repository:</p>
+                        <p><strong>📁 ${latestUpload.repository}</strong></p>
+                        <p>🌿 Branch: ${latestUpload.branch} | 👤 By: ${latestUpload.slack_user}</p>
+                    </div>
+                `;
+                
+                window.open(runUrl, '_blank_latest');
+                
+                results.innerHTML = '<div class="runner-results success">✅ Latest repository opened in new tab!</div>';
+                
+            } catch (error) {
+                results.innerHTML = `<div class="runner-results error">❌ Error running latest repository: ${error.message}</div>`;
+            }
+        }
+
+        // Function to show individual repository buttons
+        async function showIndividualButtons() {
+            const controls = document.getElementById('individualControls');
+            const results = document.getElementById('runnerResults');
+            
+            results.innerHTML = '<div class="runner-results info">🔄 Loading individual repository controls...</div>';
+            
+            try {
+                // Get uploads data if not already loaded
+                if (!uploadsData) {
+                    await loadUploadsData();
+                }
+                
+                if (!uploadsData || !uploadsData.uploads || uploadsData.uploads.length === 0) {
+                    results.innerHTML = '<div class="runner-results error">❌ No repositories found</div>';
+                    return;
+                }
+                
+                const buttonsHtml = uploadsData.uploads.map((upload, index) => `
+                    <div class="individual-repo">
+                        <h4>📁 ${upload.repository}</h4>
+                        <div class="repo-meta">
+                            🌿 ${upload.branch} | 👤 ${upload.slack_user} | 📅 ${new Date(upload.timestamp).toLocaleString()}
+                        </div>
+                        <div class="repo-buttons">
+                            <button onclick="runSingleRepo('${upload.github_url}', '${upload.repository}')" class="repo-btn-run">
+                                🚀 Run Code
+                            </button>
+                            <button onclick="openRepo('${upload.github_url}')" class="repo-btn-view">
+                                📂 View Repo
+                            </button>
+                            <button onclick="openRawFiles('${upload.github_url}')" class="repo-btn-files">
+                                📄 Raw Files
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                
+                controls.innerHTML = `
+                    <h3 style="color: #333; margin: 20px 0;">🎮 Individual Repository Controls</h3>
+                    ${buttonsHtml}
+                `;
+                
+                results.innerHTML = '<div class="runner-results success">✅ Individual controls loaded!</div>';
+                
+            } catch (error) {
+                results.innerHTML = `<div class="runner-results error">❌ Error loading repository controls: ${error.message}</div>`;
+            }
+        }
+
+        // Helper function to load uploads data
+        async function loadUploadsData() {
+            const response = await fetch('https://i558110.hera.fontysict.net/api-testing/uploads', {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            uploadsData = await response.json();
+        }
+
+        // Helper function to convert GitHub URL to a runnable format
+        function convertToRunUrl(githubUrl) {
+            try {
+                console.log('Converting URL:', githubUrl);
+                
+                // Extract owner, repo, branch, and path from GitHub URL
+                const match = githubUrl.match(/github\.com\/([^\/]+)\/([^\/]+)(?:\/tree\/([^\/]+))?(?:\/(.*))?/);
+                if (!match) {
+                    console.log('Could not parse GitHub URL');
+                    return githubUrl;
+                }
+                
+                const [, owner, repo, branch = 'main', path = ''] = match;
+                console.log('Parsed:', { owner, repo, branch, path });
+                
+                // Try multiple methods to run the code
+                
+                // Method 1: GitHub Pages (for deployed projects)
+                const pagesUrl = `https://${owner}.github.io/${repo}/`;
+                
+                // Method 2: Raw GitHub content with index.html
+                let rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/`;
+                if (path) {
+                    rawUrl += `${path}/`;
+                }
+                
+                // Method 3: Try common entry points
+                const possibleEntryPoints = [
+                    'index.html',
+                    'index.htm', 
+                    'main.html',
+                    'game.html',
+                    'app.html'
+                ];
+                
+                // For custom-doom or game projects, try the raw URL with index.html
+                if (githubUrl.includes('custom-doom') || githubUrl.includes('doom') || githubUrl.includes('game')) {
+                    const gameUrl = rawUrl + 'index.html';
+                    console.log('Trying game URL:', gameUrl);
+                    return gameUrl;
+                }
+                
+                // Method 4: Try GitHub Pages first, fallback to raw
+                console.log('Trying GitHub Pages:', pagesUrl);
+                return pagesUrl;
+                
+            } catch (error) {
+                console.log('Error converting URL:', error);
+                return githubUrl;
+            }
+        }
+
+        // Function to run a single repository
+        function runSingleRepo(githubUrl, repoName) {
+            const results = document.getElementById('runnerResults');
+            results.innerHTML = `<div class="runner-results info">🚀 Launching <strong>${repoName}</strong>...</div>`;
+            
+            // Try multiple URLs to find the working one
+            tryMultipleUrls(githubUrl, repoName);
+        }
+
+         // Function to try multiple URLs for running the code
+         function tryMultipleUrls(githubUrl, repoName) {
+             const match = githubUrl.match(/github\.com\/([^\/]+)\/([^\/]+)(?:\/tree\/([^\/]+))?(?:\/(.*))?/);
+             if (!match) {
+                 window.open(githubUrl, '_blank');
+                 return;
+             }
+             
+             const [, owner, repo, branch = 'main', path = ''] = match;
+             
+             // Create multiple possible URLs to try
+             const urlsToTry = [];
+             
+             // Method 1: GitHub Pages (try first, cleanest if it works)
+             urlsToTry.push({
+                 url: `https://${owner}.github.io/${repo}/${path ? path + '/' : ''}`,
+                 label: '🌐 GitHub Pages',
+                 priority: '(Best if enabled)',
+                 description: 'Official GitHub hosting'
+             });
+             
+             // Method 2: GitHack (reliable HTML renderer)
+             urlsToTry.push({
+                 url: `https://raw.githack.com/${owner}/${repo}/${branch}/${path ? path + '/' : ''}index.html`,
+                 label: '🔧 GitHack',
+                 priority: '(Recommended)',
+                 description: 'HTML renderer service'
+             });
+             
+             // Method 3: CDN JSDelivr (fast and reliable)
+             urlsToTry.push({
+                 url: `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${branch}/${path ? path + '/' : ''}index.html`,
+                 label: '⚡ CDN Fast',
+                 priority: '(Fast)',
+                 description: 'Content delivery network'
+             });
+             
+             // Method 4: HTMLPreview (sometimes works)
+             urlsToTry.push({
+                 url: `https://htmlpreview.github.io/?https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${path ? path + '/' : ''}index.html`,
+                 label: '📄 HTML Preview',
+                 priority: '(Alternative)',
+                 description: 'HTML preview service'
+             });
+             
+             // Method 5: Direct repository (fallback)
+             urlsToTry.push({
+                 url: githubUrl,
+                 label: '📂 View Source',
+                 priority: '(Fallback)',
+                 description: 'GitHub repository page'
+             });
+            
+            console.log('URLs to try:', urlsToTry);
+            
+            // Show all URLs immediately so user can try them
+            const results = document.getElementById('runnerResults');
+            results.innerHTML = `
+                <div class="runner-results info">
+                    <p>🚀 <strong>${repoName}</strong> - Multiple run options available:</p>
+                    <div style="margin-top: 15px;">
+                        ${urlsToTry.map((option, index) => {
+                            return `
+                                <div style="margin: 10px 0; padding: 15px; background: rgba(255,255,255,0.8); border-radius: 10px; border-left: 4px solid ${index === 0 ? '#28a745' : '#17a2b8'};">
+                                    <div style="margin-bottom: 8px;">
+                                        <button onclick="window.open('${option.url}', '_blank_${index}')" style="background: ${index === 0 ? '#28a745' : '#17a2b8'}; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; margin-right: 15px;">
+                                            🚀 Try Option ${index + 1}
+                                        </button>
+                                        <span style="font-weight: bold; color: #333;">${option.label} ${option.priority}</span>
+                                    </div>
+                                    <div style="font-size: 0.9em; color: #666; margin-bottom: 8px;">
+                                        ${option.description}
+                                    </div>
+                                    <div style="font-size: 0.8em; color: #888; font-family: monospace; background: #f8f9fa; padding: 5px 8px; border-radius: 4px; overflow-x: auto;">
+                                        ${option.url}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                    <div style="margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #fff3cd, #ffeaa7); border-radius: 10px; border-left: 4px solid #ffc107;">
+                        <p style="margin: 0; color: #856404;"><strong>💡 Pro Tips:</strong></p>
+                        <ul style="margin: 8px 0 0 20px; color: #856404;">
+                            <li><strong>Option 1 (GitHub Pages)</strong> - Works best if the repo has GitHub Pages enabled</li>
+                            <li><strong>Option 2 (GitHack)</strong> - Most reliable for HTML games and apps</li>
+                            <li><strong>Option 3 (CDN)</strong> - Fast loading, good for simple HTML files</li>
+                            <li>If one doesn't work, try the next one!</li>
+                        </ul>
+                    </div>
+                </div>
+            `;
+            
+            // Auto-try the GitHack URL (most reliable for HTML content)
+            const autoTryOption = urlsToTry.find(option => option.label.includes('GitHack')) || urlsToTry[0];
+            setTimeout(() => {
+                window.open(autoTryOption.url, `_blank_auto_${repoName.replace(/[^a-zA-Z0-9]/g, '_')}`);
+            }, 1000);
+        }
+
+        // Function to open repository page
+        function openRepo(githubUrl) {
+            window.open(githubUrl, '_blank_repo');
+        }
+
+        // Function to open raw files
+        function openRawFiles(githubUrl) {
+            const rawUrl = githubUrl.replace('github.com', 'raw.githubusercontent.com').replace('/tree/', '/');
+            window.open(rawUrl, '_blank_raw');
+        }
+    </script>
+</body>
+</html>

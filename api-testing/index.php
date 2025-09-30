@@ -1,6 +1,4 @@
 <?php
-header('Content-Type: application/json');
-
 // Enable CORS if needed
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
@@ -26,6 +24,7 @@ if (strpos($path, $basePath) === 0) {
 switch ($path) {
     case '/':
     case '/index.php':
+        header('Content-Type: application/json');
         echo json_encode([
             'message' => 'Flipboard Slack API Server',
             'status' => 'Running',
@@ -40,6 +39,7 @@ switch ($path) {
         break;
         
     case '/health':
+        header('Content-Type: application/json');
         echo json_encode([
             'status' => 'OK',
             'timestamp' => date('c')
@@ -59,12 +59,14 @@ switch ($path) {
         break;
         
     default:
+        header('Content-Type: application/json');
         http_response_code(404);
         echo json_encode(['error' => 'Endpoint not found']);
         break;
 }
 
 function handleSlackEvents() {
+    header('Content-Type: application/json');
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         http_response_code(405);
         echo json_encode(['error' => 'Method not allowed']);
@@ -277,6 +279,7 @@ function showDashboard() {
 }
 
 function showUploads() {
+    header('Content-Type: application/json');
     $uploads = getUploads();
     echo json_encode([
         'total' => count($uploads),
