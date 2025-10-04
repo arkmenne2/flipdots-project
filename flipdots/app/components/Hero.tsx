@@ -159,8 +159,13 @@ export default function Hero() {
           </p>
         </div>
 
-        {/* Right Text - OWOW x Fontys */}
-        <div className="text-right">
+        {/* Right Section - CTA Button + OWOW x Fontys */}
+        <div className="text-right flex flex-col items-end gap-4">
+          {/* Call to Action Button */}
+          <button className="bg-primary text-white px-6 py-3 rounded-lg font-heading font-semibold text-sm sm:text-base hover:bg-primary/90 transition-colors duration-200 shadow-lg hover:shadow-xl">
+            Explore the Room
+          </button>
+          
           <p className="font-heading text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">
             OWOW <span className="text-white/60">x</span>{" "}
             <span style={{ color: "#662483" }}>Fontys</span>
