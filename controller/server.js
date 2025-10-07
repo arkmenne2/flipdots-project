@@ -9,7 +9,7 @@ const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
-// Allow web clients on the local network to connect without CORS errors.
+// Allow web clients on the local network to connect
 const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
