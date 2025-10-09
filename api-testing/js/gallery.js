@@ -210,28 +210,17 @@ export function updateGalleryInteractions(canvas, clearMovementKeys) {
         now - gf.lastTrigger > TRIGGER_COOLDOWN) {
       
       console.log(`🖼️ Triggering painting: "${gf.title}" by ${gf.user}`);
-      console.log(`⬇️ Requesting download for repository: ${gf.url}`);
+      console.log(`🔗 Opening GitHub repository: ${gf.url}`);
       
       // Show info about the painting
-      const info = `🎨 "${gf.title}" by ${gf.user}\n⬇️ Downloading repo for flipboard: ${gf.url}`;
+      const info = `🎨 "${gf.title}" by ${gf.user}\n🔗 Opening GitHub repo: ${gf.url}`;
       console.log(info);
       
-      // Call backend to download and extract the repo for flipboard
+      // Trigger backend repo download instead of opening GitHub directly
       try {
-        const resp = await fetch('/api-testing/download-repo', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ github_url: gf.url })
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          console.log('✅ Download complete:', data);
-        } else {
-          const text = await resp.text();
-          console.warn('⚠️ Download request failed', resp.status, text);
-        }
+        await triggerRepoDownload(gf.url);
       } catch (e) {
-        console.error('❌ Download request error', e);
+        console.error('Download trigger failed:', e);
       }
       
       clearMovementKeys(); // Prevent movement during trigger
@@ -295,3 +284,44 @@ console.log('🎨 Gallery module exports ready:', {
   refreshGallery: typeof refreshGallery,
   galleryFrames: galleryFrames.length + ' frames'
 });
+
+// =============================================================================
+// DOWNLOAD HELPER
+// =============================================================================
+
+async function triggerRepoDownload(githubUrl) {
+  const endpoints = [
+    '/download-repo',
+    './download-repo',
+    'download-repo',
+    'https://i558110.hera.fontysict.net/api-testing/download-repo'
+  ];
+  let lastError = null;
+  for (const ep of endpoints) {
+    try {
+      console.log(`⬇️ Triggering download via ${ep} for ${githubUrl}`);
+      const res = await fetch(ep, {
+        method: 'POST',
+        mode: 'cors',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ url: githubUrl })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json && json.success) {
+        console.log('✅ Download started:', json);
+        // Optional: simple user feedback
+        alert('Repo download started on flipboard: ' + (json.target_dir || ''));
+        return true;
+      }
+      console.warn('Endpoint responded but not success:', json);
+      lastError = json;
+    } catch (err) {
+      console.warn(`Endpoint ${ep} failed:`, err.message);
+      lastError = err;
+    }
+  }
+  throw new Error('All download endpoints failed: ' + (lastError ? (lastError.message || JSON.stringify(lastError)) : 'unknown error'));
+}

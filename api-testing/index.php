@@ -92,10 +92,10 @@ switch ($path) {
     case '/uploads':
         showUploads();
         break;
-        
-        case '/download-repo':
-            handleDownloadRepo();
-            break;
+    
+    case '/download-repo':
+        handleDownloadRepo();
+        break;
         
     default:
         header('Content-Type: application/json');
@@ -213,6 +213,149 @@ function handleSlackEvents() {
     
     // Log the upload
     logUpload($githubUrl, $repoInfo, $data);
+}
+
+/**
+ * Handle repository download requests
+ * Route: GET/POST /download-repo?url=<github_repo_url>
+ * Body (JSON or form): { "url": "https://github.com/owner/repo[/tree/branch]" }
+ *
+ * Behavior:
+ * - Creates directory "test-flipboard-upload" if not exists
+ * - Tries to `git clone --depth 1` the repository into a timestamped folder
+ * - Falls back to downloading the repository ZIP if git is not available
+ */
+function handleDownloadRepo() {
+    header('Content-Type: application/json');
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST' && $_SERVER['REQUEST_METHOD'] !== 'GET') {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+        return;
+    }
+
+    // Read URL from query, JSON body, or form data
+    $githubUrl = null;
+    if (isset($_GET['url'])) {
+        $githubUrl = trim($_GET['url']);
+    } else {
+        $rawBody = file_get_contents('php://input');
+        $data = [];
+        if ($rawBody) {
+            $json = json_decode($rawBody, true);
+            if (is_array($json) && isset($json['url'])) {
+                $data = $json;
+            } else {
+                parse_str($rawBody, $data);
+            }
+        }
+        if (isset($data['url'])) {
+            $githubUrl = trim($data['url']);
+        }
+    }
+
+    if (!$githubUrl || !isValidGitHubUrl($githubUrl)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid or missing GitHub URL']);
+        return;
+    }
+
+    $repoInfo = parseGitHubUrl($githubUrl);
+    if (!$repoInfo) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Unable to parse GitHub URL']);
+        return;
+    }
+
+    $baseDir = __DIR__ . DIRECTORY_SEPARATOR . 'test-flipboard-upload';
+    if (!is_dir($baseDir)) {
+        @mkdir($baseDir, 0775, true);
+    }
+
+    $safeOwner = preg_replace('/[^a-zA-Z0-9_.-]+/', '_', $repoInfo['owner']);
+    $safeRepo = preg_replace('/[^a-zA-Z0-9_.-]+/', '_', $repoInfo['repo']);
+    $safeBranch = preg_replace('/[^a-zA-Z0-9_.-]+/', '_', $repoInfo['branch']);
+    $targetDir = $baseDir . DIRECTORY_SEPARATOR . $safeOwner . '__' . $safeRepo . '__' . $safeBranch . '__' . date('Ymd_His');
+
+    $result = [
+        'requested_url' => $githubUrl,
+        'owner' => $repoInfo['owner'],
+        'repo' => $repoInfo['repo'],
+        'branch' => $repoInfo['branch'],
+        'target_dir' => $targetDir,
+        'method' => null,
+        'stdout' => '',
+        'stderr' => '',
+        'success' => false
+    ];
+
+    // Try git clone first
+    $gitAvailable = commandExists('git');
+    if ($gitAvailable) {
+        @mkdir($targetDir, 0775, true);
+        $cloneUrl = 'https://github.com/' . $repoInfo['owner'] . '/' . $repoInfo['repo'] . '.git';
+        $branchArg = $repoInfo['branch'] ? (' -b ' . escapeshellarg($repoInfo['branch'])) : '';
+        $cmd = 'git clone --depth 1' . $branchArg . ' ' . escapeshellarg($cloneUrl) . ' ' . escapeshellarg($targetDir);
+        $execRes = runCommand($cmd);
+        $result['method'] = 'git';
+        $result['stdout'] = $execRes['stdout'];
+        $result['stderr'] = $execRes['stderr'];
+        $result['success'] = $execRes['code'] === 0 && is_dir($targetDir);
+    }
+
+    // Fallback: download ZIP archive and extract
+    if (!$result['success']) {
+        @mkdir($targetDir, 0775, true);
+        $zipUrl = 'https://github.com/' . $repoInfo['owner'] . '/' . $repoInfo['repo'] . '/archive/refs/heads/' . $repoInfo['branch'] . '.zip';
+        $zipFile = $targetDir . '.zip';
+        $downloaded = @file_put_contents($zipFile, @file_get_contents($zipUrl));
+        if ($downloaded) {
+            $zip = new ZipArchive();
+            if ($zip->open($zipFile) === true) {
+                $zip->extractTo($targetDir);
+                $zip->close();
+                @unlink($zipFile);
+                $result['method'] = 'zip';
+                $result['success'] = true;
+            } else {
+                $result['method'] = 'zip';
+                $result['stderr'] = 'Failed to open ZIP archive';
+            }
+        } else {
+            $result['method'] = $result['method'] ?: 'zip';
+            $result['stderr'] = 'Failed to download ZIP from GitHub';
+        }
+    }
+
+    if ($result['success']) {
+        echo json_encode($result);
+    } else {
+        http_response_code(500);
+        echo json_encode($result);
+    }
+}
+
+/** Check if a command exists on the server PATH */
+function commandExists($cmd) {
+    $where = stripos(PHP_OS, 'WIN') === 0 ? 'where' : 'which';
+    $res = runCommand($where . ' ' . escapeshellarg($cmd));
+    return $res['code'] === 0 && trim($res['stdout']) !== '';
+}
+
+/** Execute a shell command and capture output */
+function runCommand($cmd) {
+    $descriptor = [
+        1 => ['pipe', 'w'], // stdout
+        2 => ['pipe', 'w'], // stderr
+    ];
+    $process = proc_open($cmd, $descriptor, $pipes, null, null, ['bypass_shell' => true]);
+    if (!is_resource($process)) {
+        return ['code' => 1, 'stdout' => '', 'stderr' => 'Failed to start process'];
+    }
+    $stdout = stream_get_contents($pipes[1]);
+    $stderr = stream_get_contents($pipes[2]);
+    foreach ($pipes as $p) { fclose($p); }
+    $code = proc_close($process);
+    return ['code' => $code, 'stdout' => $stdout, 'stderr' => $stderr];
 }
 
 function logUpload($githubUrl, $repoInfo, $slackData) {
@@ -351,138 +494,5 @@ function parseGitHubUrl($url) {
         ];
     }
     return null;
-}
-
-/**
- * Handle POST /download-repo
- * Accepts JSON or form body with { github_url }
- * Downloads the repository ZIP from GitHub (codeload) and extracts it into temp-repos
- * Returns JSON with local paths
- */
-function handleDownloadRepo() {
-    header('Content-Type: application/json');
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        http_response_code(405);
-        echo json_encode(['error' => 'Method not allowed']);
-        return;
-    }
-
-    // Read input: JSON or form
-    $raw = file_get_contents('php://input');
-    $data = [];
-    $contentType = isset($_SERVER['CONTENT_TYPE']) ? $_SERVER['CONTENT_TYPE'] : '';
-    if (stripos($contentType, 'application/json') !== false) {
-        $data = json_decode($raw, true) ?: [];
-    } else {
-        parse_str($raw, $data);
-        // also consider $_POST if present
-        if (empty($data) && !empty($_POST)) {
-            $data = $_POST;
-        }
-    }
-
-    $githubUrl = isset($data['github_url']) ? trim($data['github_url']) : '';
-    if (!$githubUrl) {
-        http_response_code(400);
-        echo json_encode(['error' => 'github_url is required']);
-        return;
-    }
-
-    if (!isValidGitHubUrl($githubUrl)) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Invalid GitHub URL']);
-        return;
-    }
-
-    $info = parseGitHubUrl($githubUrl);
-    if (!$info) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Could not parse GitHub URL']);
-        return;
-    }
-
-    // Build codeload zip URL
-    $owner = $info['owner'];
-    $repo = $info['repo'];
-    $branch = $info['branch'] ?: 'main';
-    $zipUrl = "https://codeload.github.com/{$owner}/{$repo}/zip/refs/heads/{$branch}";
-
-    // Ensure temp-repos directory exists
-    $baseDir = __DIR__ . DIRECTORY_SEPARATOR . 'temp-repos';
-    if (!is_dir($baseDir)) {
-        @mkdir($baseDir, 0777, true);
-    }
-
-    // File paths
-    $timestamp = (string)floor(microtime(true) * 1000);
-    $zipFile = $baseDir . DIRECTORY_SEPARATOR . "{$owner}-{$repo}-{$timestamp}.zip";
-
-    // Download ZIP
-    $downloadOk = downloadFile($zipUrl, $zipFile);
-    if (!$downloadOk || !file_exists($zipFile)) {
-        http_response_code(502);
-        echo json_encode(['error' => 'Failed to download repository ZIP', 'zip_url' => $zipUrl]);
-        return;
-    }
-
-    // Extract ZIP
-    $extractDir = $baseDir . DIRECTORY_SEPARATOR . "{$owner}-{$repo}-{$timestamp}";
-    $extractOk = extractZip($zipFile, $extractDir);
-    if (!$extractOk) {
-        http_response_code(500);
-        echo json_encode(['error' => 'Failed to extract repository ZIP', 'zip_file' => basename($zipFile)]);
-        return;
-    }
-
-    echo json_encode([
-        'status' => 'ok',
-        'owner' => $owner,
-        'repo' => $repo,
-        'branch' => $branch,
-        'zip_url' => $zipUrl,
-        'zip_file' => 'temp-repos/' . basename($zipFile),
-        'extract_dir' => 'temp-repos/' . basename($extractDir)
-    ], JSON_PRETTY_PRINT);
-}
-
-/**
- * Download a file via fopen stream or file_get_contents
- */
-function downloadFile($url, $destPath) {
-    // Try fopen stream copy
-    $in = @fopen($url, 'rb');
-    if ($in) {
-        $out = @fopen($destPath, 'wb');
-        if ($out) {
-            while (!feof($in)) {
-                $buf = fread($in, 8192);
-                if ($buf === false) break;
-                fwrite($out, $buf);
-            }
-            fclose($in);
-            fclose($out);
-            return true;
-        }
-    }
-    // Fallback
-    $data = @file_get_contents($url);
-    if ($data === false) return false;
-    return file_put_contents($destPath, $data) !== false;
-}
-
-/**
- * Extract a ZIP file using ZipArchive
- */
-function extractZip($zipFile, $extractTo) {
-    $zip = new ZipArchive();
-    if ($zip->open($zipFile) === true) {
-        if (!is_dir($extractTo)) {
-            @mkdir($extractTo, 0777, true);
-        }
-        $ok = $zip->extractTo($extractTo);
-        $zip->close();
-        return $ok;
-    }
-    return false;
 }
 ?>
