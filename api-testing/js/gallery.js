@@ -12,7 +12,7 @@ import {
   LOOK_PRECISION 
 } from './config.js';
 import { getPlayerPosition } from './player.js';
-import { handlePaintingClick } from '../flipboard-working.js';
+import { handlePaintingClick, createCustomFlipboard } from './flipboard-browser.js';
 
 // =============================================================================
 // GALLERY PAINTINGS CONFIGURATION
@@ -177,6 +177,13 @@ function updateGalleryFrames(uploads) {
   galleryFrames.forEach((frame, i) => {
     console.log(`🖼️ Painting ${i + 1}: "${frame.title}" by ${frame.user} at (${frame.x}, ${frame.y})`);
   });
+  
+  // Show welcome message on flipboard
+  if (galleryFrames.length > 0) {
+    setTimeout(() => {
+      createCustomFlipboard('Welcome to the Flipboard Gallery! Walk into paintings to see repository info on the flipboard!', 'Welcome');
+    }, 2000);
+  }
 }
 
 

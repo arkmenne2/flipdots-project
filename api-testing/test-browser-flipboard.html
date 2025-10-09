@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎯 Browser Flipboard Integration Test</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .test-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            border: 2px solid #fff;
+        }
+        
+        .test-button {
+            background: #000;
+            color: #fff;
+            border: 2px solid #fff;
+            padding: 15px 30px;
+            margin: 10px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .test-button:hover {
+            background: #fff;
+            color: #000;
+        }
+        
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #fff;
+            background: rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🎯 Browser Flipboard Integration Test</h1>
+        <p>Test the flipboard integration directly in the browser</p>
+        
+        <div class="status" id="status">
+            Ready to test flipboard integration...
+        </div>
+        
+        <div>
+            <button class="test-button" onclick="testRepository()">
+                🎨 Test Repository Display
+            </button>
+            
+            <button class="test-button" onclick="testCustomMessage()">
+                💬 Test Custom Message
+            </button>
+            
+            <button class="test-button" onclick="testMultipleRepos()">
+                🔄 Test Multiple Repositories
+            </button>
+        </div>
+        
+        <div style="margin-top: 30px; text-align: left;">
+            <h3>📋 Test Instructions:</h3>
+            <ol>
+                <li>Click "Test Repository Display" to see a repository on the flipboard</li>
+                <li>Click "Test Custom Message" to see a custom message</li>
+                <li>Click "Test Multiple Repositories" to test several repos</li>
+                <li>Each test will show a flipboard modal with the generated image</li>
+                <li>The flipboard images are 84×28 pixels, scaled 4x for visibility</li>
+            </ol>
+        </div>
+    </div>
+
+    <script type="module">
+        import { handlePaintingClick, createCustomFlipboard } from './js/flipboard-browser.js';
+        
+        // Make functions available globally
+        window.testRepository = async function() {
+            updateStatus('🧪 Testing repository display...');
+            
+            try {
+                const result = await handlePaintingClick('https://github.com/octocat/Hello-World', 'Hello-World');
+                
+                if (result.success) {
+                    updateStatus('✅ Repository test successful! Check the flipboard modal.');
+                    console.log('Repository test result:', result);
+                } else {
+                    updateStatus('❌ Repository test failed: ' + result.message);
+                }
+            } catch (error) {
+                updateStatus('❌ Repository test error: ' + error.message);
+                console.error('Repository test error:', error);
+            }
+        };
+        
+        window.testCustomMessage = async function() {
+            updateStatus('🧪 Testing custom message...');
+            
+            try {
+                const result = await createCustomFlipboard('This is a test message for the flipboard display!', 'Test Message');
+                
+                if (result.success) {
+                    updateStatus('✅ Custom message test successful! Check the flipboard modal.');
+                    console.log('Custom message test result:', result);
+                } else {
+                    updateStatus('❌ Custom message test failed: ' + result.message);
+                }
+            } catch (error) {
+                updateStatus('❌ Custom message test error: ' + error.message);
+                console.error('Custom message test error:', error);
+            }
+        };
+        
+        window.testMultipleRepos = async function() {
+            updateStatus('🧪 Testing multiple repositories...');
+            
+            const repos = [
+                { url: 'https://github.com/octocat/Hello-World', name: 'Hello-World' },
+                { url: 'https://github.com/microsoft/vscode', name: 'vscode' },
+                { url: 'https://github.com/facebook/react', name: 'react' }
+            ];
+            
+            for (let i = 0; i < repos.length; i++) {
+                const repo = repos[i];
+                updateStatus(`🧪 Testing repository ${i + 1}/${repos.length}: ${repo.name}`);
+                
+                try {
+                    const result = await handlePaintingClick(repo.url, repo.name);
+                    
+                    if (result.success) {
+                        console.log(`✅ Repository ${i + 1} test successful:`, result);
+                    } else {
+                        console.log(`❌ Repository ${i + 1} test failed:`, result.message);
+                    }
+                } catch (error) {
+                    console.error(`❌ Repository ${i + 1} test error:`, error);
+                }
+                
+                // Wait 2 seconds between tests
+                if (i < repos.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                }
+            }
+            
+            updateStatus('✅ Multiple repository tests completed! Check the flipboard modals.');
+        };
+        
+        function updateStatus(message) {
+            document.getElementById('status').textContent = message;
+        }
+        
+        // Show initial status
+        updateStatus('🎯 Browser flipboard integration loaded and ready!');
+        console.log('🎯 Browser flipboard integration test page loaded');
+    </script>
+</body>
+</html>
