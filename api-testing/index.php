@@ -93,6 +93,10 @@ switch ($path) {
         showUploads();
         break;
         
+        case '/download-repo':
+            handleDownloadRepo();
+            break;
+        
     default:
         header('Content-Type: application/json');
         http_response_code(404);
@@ -347,5 +351,138 @@ function parseGitHubUrl($url) {
         ];
     }
     return null;
+}
+
+/**
+ * Handle POST /download-repo
+ * Accepts JSON or form body with { github_url }
+ * Downloads the repository ZIP from GitHub (codeload) and extracts it into temp-repos
+ * Returns JSON with local paths
+ */
+function handleDownloadRepo() {
+    header('Content-Type: application/json');
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+        return;
+    }
+
+    // Read input: JSON or form
+    $raw = file_get_contents('php://input');
+    $data = [];
+    $contentType = isset($_SERVER['CONTENT_TYPE']) ? $_SERVER['CONTENT_TYPE'] : '';
+    if (stripos($contentType, 'application/json') !== false) {
+        $data = json_decode($raw, true) ?: [];
+    } else {
+        parse_str($raw, $data);
+        // also consider $_POST if present
+        if (empty($data) && !empty($_POST)) {
+            $data = $_POST;
+        }
+    }
+
+    $githubUrl = isset($data['github_url']) ? trim($data['github_url']) : '';
+    if (!$githubUrl) {
+        http_response_code(400);
+        echo json_encode(['error' => 'github_url is required']);
+        return;
+    }
+
+    if (!isValidGitHubUrl($githubUrl)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid GitHub URL']);
+        return;
+    }
+
+    $info = parseGitHubUrl($githubUrl);
+    if (!$info) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Could not parse GitHub URL']);
+        return;
+    }
+
+    // Build codeload zip URL
+    $owner = $info['owner'];
+    $repo = $info['repo'];
+    $branch = $info['branch'] ?: 'main';
+    $zipUrl = "https://codeload.github.com/{$owner}/{$repo}/zip/refs/heads/{$branch}";
+
+    // Ensure temp-repos directory exists
+    $baseDir = __DIR__ . DIRECTORY_SEPARATOR . 'temp-repos';
+    if (!is_dir($baseDir)) {
+        @mkdir($baseDir, 0777, true);
+    }
+
+    // File paths
+    $timestamp = (string)floor(microtime(true) * 1000);
+    $zipFile = $baseDir . DIRECTORY_SEPARATOR . "{$owner}-{$repo}-{$timestamp}.zip";
+
+    // Download ZIP
+    $downloadOk = downloadFile($zipUrl, $zipFile);
+    if (!$downloadOk || !file_exists($zipFile)) {
+        http_response_code(502);
+        echo json_encode(['error' => 'Failed to download repository ZIP', 'zip_url' => $zipUrl]);
+        return;
+    }
+
+    // Extract ZIP
+    $extractDir = $baseDir . DIRECTORY_SEPARATOR . "{$owner}-{$repo}-{$timestamp}";
+    $extractOk = extractZip($zipFile, $extractDir);
+    if (!$extractOk) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to extract repository ZIP', 'zip_file' => basename($zipFile)]);
+        return;
+    }
+
+    echo json_encode([
+        'status' => 'ok',
+        'owner' => $owner,
+        'repo' => $repo,
+        'branch' => $branch,
+        'zip_url' => $zipUrl,
+        'zip_file' => 'temp-repos/' . basename($zipFile),
+        'extract_dir' => 'temp-repos/' . basename($extractDir)
+    ], JSON_PRETTY_PRINT);
+}
+
+/**
+ * Download a file via fopen stream or file_get_contents
+ */
+function downloadFile($url, $destPath) {
+    // Try fopen stream copy
+    $in = @fopen($url, 'rb');
+    if ($in) {
+        $out = @fopen($destPath, 'wb');
+        if ($out) {
+            while (!feof($in)) {
+                $buf = fread($in, 8192);
+                if ($buf === false) break;
+                fwrite($out, $buf);
+            }
+            fclose($in);
+            fclose($out);
+            return true;
+        }
+    }
+    // Fallback
+    $data = @file_get_contents($url);
+    if ($data === false) return false;
+    return file_put_contents($destPath, $data) !== false;
+}
+
+/**
+ * Extract a ZIP file using ZipArchive
+ */
+function extractZip($zipFile, $extractTo) {
+    $zip = new ZipArchive();
+    if ($zip->open($zipFile) === true) {
+        if (!is_dir($extractTo)) {
+            @mkdir($extractTo, 0777, true);
+        }
+        $ok = $zip->extractTo($extractTo);
+        $zip->close();
+        return $ok;
+    }
+    return false;
 }
 ?>

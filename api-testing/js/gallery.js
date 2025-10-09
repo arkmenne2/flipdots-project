@@ -1,7 +1,6 @@
 /**
  * Gallery Paintings System - API Integration
  * Fetches GitHub uploads from API and displays them as interactive paintings
- * Now integrated with flipboard display system
  */
 
 console.log('🎨 Gallery module loading...');
@@ -12,7 +11,6 @@ import {
   LOOK_PRECISION 
 } from './config.js';
 import { getPlayerPosition } from './player.js';
-import { handlePaintingClick, createCustomFlipboard } from './flipboard-browser.js';
 
 // =============================================================================
 // GALLERY PAINTINGS CONFIGURATION
@@ -177,13 +175,6 @@ function updateGalleryFrames(uploads) {
   galleryFrames.forEach((frame, i) => {
     console.log(`🖼️ Painting ${i + 1}: "${frame.title}" by ${frame.user} at (${frame.x}, ${frame.y})`);
   });
-  
-  // Show welcome message on flipboard
-  if (galleryFrames.length > 0) {
-    setTimeout(() => {
-      createCustomFlipboard('Welcome to the Flipboard Gallery! Walk into paintings to see repository info on the flipboard!', 'Welcome');
-    }, 2000);
-  }
 }
 
 
@@ -219,32 +210,29 @@ export function updateGalleryInteractions(canvas, clearMovementKeys) {
         now - gf.lastTrigger > TRIGGER_COOLDOWN) {
       
       console.log(`🖼️ Triggering painting: "${gf.title}" by ${gf.user}`);
-      console.log(`🔗 Processing repository for flipboard: ${gf.url}`);
+      console.log(`⬇️ Requesting download for repository: ${gf.url}`);
       
       // Show info about the painting
-      const info = `🎨 "${gf.title}" by ${gf.user}\n🎯 Processing for flipboard display...`;
+      const info = `🎨 "${gf.title}" by ${gf.user}\n⬇️ Downloading repo for flipboard: ${gf.url}`;
       console.log(info);
       
-      // Process repository for flipboard display
-      handlePaintingClick(gf.url, gf.title)
-        .then(result => {
-          if (result.success) {
-            console.log(`✅ ${result.message}`);
-            console.log(`🖼️ Flipboard image: ${result.imagePath}`);
-            
-            // Also open the original GitHub repository URL
-            window.open(gf.url, '_blank');
-          } else {
-            console.log(`❌ ${result.message}`);
-            // Fallback: just open the GitHub URL
-            window.open(gf.url, '_blank');
-          }
-        })
-        .catch(error => {
-          console.error(`❌ Error processing repository: ${error.message}`);
-          // Fallback: just open the GitHub URL
-          window.open(gf.url, '_blank');
+      // Call backend to download and extract the repo for flipboard
+      try {
+        const resp = await fetch('/api-testing/download-repo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ github_url: gf.url })
         });
+        if (resp.ok) {
+          const data = await resp.json();
+          console.log('✅ Download complete:', data);
+        } else {
+          const text = await resp.text();
+          console.warn('⚠️ Download request failed', resp.status, text);
+        }
+      } catch (e) {
+        console.error('❌ Download request error', e);
+      }
       
       clearMovementKeys(); // Prevent movement during trigger
       gf.lastTrigger = now;
