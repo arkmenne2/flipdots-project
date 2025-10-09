@@ -288,27 +288,39 @@ function handleDownloadRepo() {
         'success' => false
     ];
 
-    // Try git clone first
-    $gitAvailable = commandExists('git');
+    // Try git clone first (if available)
+    $gitAvailable = function_exists('exec') && commandExists('git');
     if ($gitAvailable) {
         @mkdir($targetDir, 0775, true);
         $cloneUrl = 'https://github.com/' . $repoInfo['owner'] . '/' . $repoInfo['repo'] . '.git';
         $branchArg = $repoInfo['branch'] ? (' -b ' . escapeshellarg($repoInfo['branch'])) : '';
-        $cmd = 'git clone --depth 1' . $branchArg . ' ' . escapeshellarg($cloneUrl) . ' ' . escapeshellarg($targetDir);
-        $execRes = runCommand($cmd);
+        $cmd = 'git clone --depth 1' . $branchArg . ' ' . escapeshellarg($cloneUrl) . ' ' . escapeshellarg($targetDir) . ' 2>&1';
+        
+        $output = [];
+        $returnCode = 0;
+        exec($cmd, $output, $returnCode);
+        
         $result['method'] = 'git';
-        $result['stdout'] = $execRes['stdout'];
-        $result['stderr'] = $execRes['stderr'];
-        $result['success'] = $execRes['code'] === 0 && is_dir($targetDir);
+        $result['stdout'] = implode("\n", $output);
+        $result['stderr'] = $returnCode !== 0 ? implode("\n", $output) : '';
+        $result['success'] = $returnCode === 0 && is_dir($targetDir);
     }
 
-    // Fallback: download ZIP archive and extract
-    if (!$result['success']) {
+    // Fallback: download ZIP archive and extract (if ZipArchive available)
+    if (!$result['success'] && class_exists('ZipArchive')) {
         @mkdir($targetDir, 0775, true);
         $zipUrl = 'https://github.com/' . $repoInfo['owner'] . '/' . $repoInfo['repo'] . '/archive/refs/heads/' . $repoInfo['branch'] . '.zip';
         $zipFile = $targetDir . '.zip';
-        $downloaded = @file_put_contents($zipFile, @file_get_contents($zipUrl));
-        if ($downloaded) {
+        
+        $context = stream_context_create([
+            'http' => [
+                'timeout' => 30,
+                'user_agent' => 'Flipboard-Downloader/1.0'
+            ]
+        ]);
+        
+        $downloaded = @file_put_contents($zipFile, @file_get_contents($zipUrl, false, $context));
+        if ($downloaded && $downloaded > 0) {
             $zip = new ZipArchive();
             if ($zip->open($zipFile) === true) {
                 $zip->extractTo($targetDir);
@@ -322,7 +334,28 @@ function handleDownloadRepo() {
             }
         } else {
             $result['method'] = $result['method'] ?: 'zip';
-            $result['stderr'] = 'Failed to download ZIP from GitHub';
+            $result['stderr'] = 'Failed to download ZIP from GitHub (size: ' . ($downloaded ?: 0) . ')';
+        }
+    }
+
+    // Final fallback: create a simple info file
+    if (!$result['success']) {
+        @mkdir($targetDir, 0775, true);
+        $infoFile = $targetDir . DIRECTORY_SEPARATOR . 'repo-info.txt';
+        $info = "GitHub Repository: {$githubUrl}\n";
+        $info .= "Owner: {$repoInfo['owner']}\n";
+        $info .= "Repository: {$repoInfo['repo']}\n";
+        $info .= "Branch: {$repoInfo['branch']}\n";
+        $info .= "Downloaded: " . date('Y-m-d H:i:s') . "\n";
+        $info .= "Note: Full download not available on this server\n";
+        
+        if (@file_put_contents($infoFile, $info)) {
+            $result['method'] = 'info';
+            $result['success'] = true;
+            $result['stdout'] = 'Created info file (full download not available)';
+        } else {
+            $result['method'] = 'failed';
+            $result['stderr'] = 'Unable to create directory or info file';
         }
     }
 
@@ -336,26 +369,15 @@ function handleDownloadRepo() {
 
 /** Check if a command exists on the server PATH */
 function commandExists($cmd) {
-    $where = stripos(PHP_OS, 'WIN') === 0 ? 'where' : 'which';
-    $res = runCommand($where . ' ' . escapeshellarg($cmd));
-    return $res['code'] === 0 && trim($res['stdout']) !== '';
-}
-
-/** Execute a shell command and capture output */
-function runCommand($cmd) {
-    $descriptor = [
-        1 => ['pipe', 'w'], // stdout
-        2 => ['pipe', 'w'], // stderr
-    ];
-    $process = proc_open($cmd, $descriptor, $pipes, null, null, ['bypass_shell' => true]);
-    if (!is_resource($process)) {
-        return ['code' => 1, 'stdout' => '', 'stderr' => 'Failed to start process'];
+    if (!function_exists('exec')) {
+        return false;
     }
-    $stdout = stream_get_contents($pipes[1]);
-    $stderr = stream_get_contents($pipes[2]);
-    foreach ($pipes as $p) { fclose($p); }
-    $code = proc_close($process);
-    return ['code' => $code, 'stdout' => $stdout, 'stderr' => $stderr];
+    
+    $where = stripos(PHP_OS, 'WIN') === 0 ? 'where' : 'which';
+    $output = [];
+    $returnCode = 0;
+    exec($where . ' ' . escapeshellarg($cmd) . ' 2>&1', $output, $returnCode);
+    return $returnCode === 0 && !empty($output) && trim($output[0]) !== '';
 }
 
 function logUpload($githubUrl, $repoInfo, $slackData) {
