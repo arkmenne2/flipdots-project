@@ -93,12 +93,8 @@ switch ($path) {
         showUploads();
         break;
         
-    case '/flipdot/process':
-        processFlipdotImage();
-        break;
-        
-    case '/flipdot/status':
-        getFlipdotStatus();
+    case '/trigger':
+        handleTrigger();
         break;
         
     default:
@@ -217,6 +213,75 @@ function handleSlackEvents() {
     
     // Log the upload
     logUpload($githubUrl, $repoInfo, $data);
+}
+
+function handleTrigger() {
+    header('Content-Type: application/json');
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed']);
+        return;
+    }
+
+    // Read JSON body (fallback to form data if needed)
+    $raw = file_get_contents('php://input');
+    $payload = json_decode($raw, true);
+    if (!$payload) {
+        // Try form encoded
+        parse_str($raw, $payload);
+    }
+
+    $githubUrl = isset($payload['github_url']) ? trim($payload['github_url']) : '';
+    $title = isset($payload['title']) ? trim($payload['title']) : '';
+    $user = isset($payload['user']) ? trim($payload['user']) : 'gallery';
+    $timestamp = isset($payload['timestamp']) ? $payload['timestamp'] : date('c');
+
+    if (!$githubUrl || !isValidGitHubUrl($githubUrl)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid or missing github_url']);
+        return;
+    }
+
+    // Record current selection for flipboard display
+    $current = [
+        'github_url' => $githubUrl,
+        'title' => $title ?: $githubUrl,
+        'user' => $user,
+        'timestamp' => $timestamp
+    ];
+    file_put_contents('current.json', json_encode($current, JSON_PRETTY_PRINT));
+
+    // Also append to uploads as a view event (keeps last 6 consistent)
+    logExternalView($githubUrl, $title, $user, $timestamp);
+
+    echo json_encode(['status' => 'ok', 'current' => $current]);
+}
+
+function logExternalView($githubUrl, $title, $user, $timestamp) {
+    $repoInfo = parseGitHubUrl($githubUrl);
+    if (!$repoInfo) return;
+
+    $logFile = 'uploads.json';
+    $uploads = [];
+    if (file_exists($logFile)) {
+        $content = file_get_contents($logFile);
+        $uploads = json_decode($content, true) ?: [];
+    }
+
+    $upload = [
+        'id' => uniqid('view_'),
+        'timestamp' => $timestamp,
+        'github_url' => $githubUrl,
+        'repository' => $repoInfo['owner'] . '/' . $repoInfo['repo'],
+        'branch' => $repoInfo['branch'],
+        'path' => $repoInfo['path'],
+        'slack_user' => $user,
+        'slack_channel' => 'gallery'
+    ];
+
+    array_unshift($uploads, $upload);
+    $uploads = array_slice($uploads, 0, 6);
+    file_put_contents($logFile, json_encode($uploads, JSON_PRETTY_PRINT));
 }
 
 function logUpload($githubUrl, $repoInfo, $slackData) {
@@ -355,170 +420,5 @@ function parseGitHubUrl($url) {
         ];
     }
     return null;
-}
-
-/**
- * =============================================================================
- * FLIPDOT DISPLAY INTEGRATION
- * =============================================================================
- */
-
-/**
- * Process an image for flipdot display
- * This function handles image processing and flipdot display integration
- */
-function processFlipdotImage() {
-    header('Content-Type: application/json');
-    
-    // Only allow POST requests
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        http_response_code(405);
-        echo json_encode(['error' => 'Method not allowed']);
-        return;
-    }
-    
-    try {
-        // Get JSON input
-        $input = json_decode(file_get_contents('php://input'), true);
-        
-        if (!$input || !isset($input['image_url']) || !isset($input['repository_name'])) {
-            http_response_code(400);
-            echo json_encode(['error' => 'Missing required fields: image_url, repository_name']);
-            return;
-        }
-        
-        $imageUrl = $input['image_url'];
-        $repositoryName = $input['repository_name'];
-        
-        // Validate image URL
-        if (!filter_var($imageUrl, FILTER_VALIDATE_URL)) {
-            http_response_code(400);
-            echo json_encode(['error' => 'Invalid image URL']);
-            return;
-        }
-        
-        // Create flipdot processing result
-        $result = [
-            'success' => true,
-            'message' => 'Image processed for flipdot display',
-            'repository_name' => $repositoryName,
-            'image_url' => $imageUrl,
-            'flipdot_status' => 'ready',
-            'processed_at' => date('c'),
-            'display_info' => [
-                'width' => 84,  // 3x28 panels
-                'height' => 28, // 1x28 panels
-                'panels' => 3,
-                'mode' => 'development' // Set to 'production' for real hardware
-            ]
-        ];
-        
-        // Log the flipdot processing
-        logFlipdotProcessing($repositoryName, $imageUrl, $result);
-        
-        echo json_encode($result);
-        
-    } catch (Exception $e) {
-        http_response_code(500);
-        echo json_encode([
-            'success' => false,
-            'error' => $e->getMessage(),
-            'message' => 'Failed to process image for flipdot display'
-        ]);
-    }
-}
-
-/**
- * Get flipdot display status and configuration
- */
-function getFlipdotStatus() {
-    header('Content-Type: application/json');
-    
-    $status = [
-        'connected' => true,
-        'mode' => 'development', // Change to 'production' for real hardware
-        'display_info' => [
-            'width' => 84,
-            'height' => 28,
-            'panels' => 3,
-            'panel_width' => 28,
-            'layout' => [
-                [3, 2, 1]
-            ]
-        ],
-        'last_processed' => getLastFlipdotProcessing(),
-        'processing_count' => getFlipdotProcessingCount()
-    ];
-    
-    echo json_encode($status);
-}
-
-/**
- * Log flipdot processing activity
- */
-function logFlipdotProcessing($repositoryName, $imageUrl, $result) {
-    $logEntry = [
-        'timestamp' => date('c'),
-        'repository_name' => $repositoryName,
-        'image_url' => $imageUrl,
-        'result' => $result
-    ];
-    
-    $logFile = 'data/flipdot_processing.json';
-    
-    // Ensure data directory exists
-    if (!file_exists('data')) {
-        mkdir('data', 0755, true);
-    }
-    
-    // Load existing log
-    $logs = [];
-    if (file_exists($logFile)) {
-        $logs = json_decode(file_get_contents($logFile), true) ?: [];
-    }
-    
-    // Add new entry
-    $logs[] = $logEntry;
-    
-    // Keep only last 50 entries
-    if (count($logs) > 50) {
-        $logs = array_slice($logs, -50);
-    }
-    
-    // Save log
-    file_put_contents($logFile, json_encode($logs, JSON_PRETTY_PRINT));
-}
-
-/**
- * Get last flipdot processing entry
- */
-function getLastFlipdotProcessing() {
-    $logFile = 'data/flipdot_processing.json';
-    
-    if (!file_exists($logFile)) {
-        return null;
-    }
-    
-    $logs = json_decode(file_get_contents($logFile), true) ?: [];
-    
-    if (empty($logs)) {
-        return null;
-    }
-    
-    return end($logs);
-}
-
-/**
- * Get total flipdot processing count
- */
-function getFlipdotProcessingCount() {
-    $logFile = 'data/flipdot_processing.json';
-    
-    if (!file_exists($logFile)) {
-        return 0;
-    }
-    
-    $logs = json_decode(file_get_contents($logFile), true) ?: [];
-    return count($logs);
 }
 ?>

@@ -216,9 +216,24 @@ export function updateGalleryInteractions(canvas, clearMovementKeys) {
       const info = `🎨 "${gf.title}" by ${gf.user}\n🔗 Opening GitHub repo: ${gf.url}`;
       console.log(info);
       
-      // Process for flipdot display
-      processForFlipdot(gf.title, gf.url);
-      
+      // Notify backend flipboard trigger so dashboard can show selection
+      try {
+        fetch('/api-testing/trigger', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            github_url: gf.url,
+            title: gf.title,
+            user: gf.user,
+            timestamp: gf.timestamp
+          })
+        }).then(r => r.json()).then(res => {
+          console.log('📡 Trigger recorded:', res);
+        }).catch(err => console.warn('⚠️ Trigger post failed:', err.message));
+      } catch (e) {
+        console.warn('⚠️ Trigger error:', e.message);
+      }
+
       // Open the original GitHub repository URL
       window.open(gf.url, '_blank');
       
@@ -260,127 +275,6 @@ export function getGalleryFrameCount() {
 export async function refreshGallery() {
   console.log('🔄 Refreshing gallery data...');
   return await loadGalleryData();
-}
-
-/**
- * =============================================================================
- * FLIPDOT DISPLAY INTEGRATION
- * =============================================================================
- */
-
-/**
- * Process a repository for flipdot display
- * This function sends the repository information to the flipdot processing API
- */
-async function processForFlipdot(repositoryName, githubUrl) {
-  try {
-    console.log('🔄 Processing repository for flipdot display:', repositoryName);
-    
-    // Create a screenshot URL from the GitHub repository
-    // This is a placeholder - in a real implementation, you'd capture the actual repo
-    const imageUrl = `https://github.com/${repositoryName.split('/')[0]}/${repositoryName.split('/')[1]}/raw/main/README.md`;
-    
-    // Prepare the flipdot processing request
-    const requestData = {
-      image_url: imageUrl,
-      repository_name: repositoryName,
-      github_url: githubUrl,
-      timestamp: new Date().toISOString()
-    };
-    
-    console.log('📤 Sending flipdot processing request:', requestData);
-    
-    // Send request to flipdot processing API
-    const response = await fetch('https://i558110.hera.fontysict.net/api-testing/flipdot/process', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestData)
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    const result = await response.json();
-    console.log('✅ Flipdot processing result:', result);
-    
-    // Show success message
-    if (result.success) {
-      console.log(`🎯 Repository "${repositoryName}" processed for flipdot display!`);
-      console.log(`📊 Display info: ${result.display_info.width}x${result.display_info.height} panels`);
-      
-      // You could add a visual notification here
-      showFlipdotNotification(repositoryName, result);
-    } else {
-      console.error('❌ Flipdot processing failed:', result.error);
-    }
-    
-  } catch (error) {
-    console.error('❌ Error processing repository for flipdot:', error);
-    console.log('🔄 Falling back to standard repository view...');
-  }
-}
-
-/**
- * Show a notification when flipdot processing is complete
- */
-function showFlipdotNotification(repositoryName, result) {
-  // Create a temporary notification element
-  const notification = document.createElement('div');
-  notification.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    background: #000;
-    color: #fff;
-    border: 2px solid #fff;
-    padding: 15px;
-    font-family: 'Courier New', monospace;
-    font-size: 12px;
-    z-index: 10000;
-    max-width: 300px;
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
-  `;
-  
-  notification.innerHTML = `
-    <div style="font-weight: bold; margin-bottom: 8px;">🎯 FLIPDOT DISPLAY</div>
-    <div style="margin-bottom: 5px;">📦 ${repositoryName}</div>
-    <div style="margin-bottom: 5px;">📊 ${result.display_info.width}x${result.display_info.height}</div>
-    <div style="margin-bottom: 5px;">⚡ ${result.display_info.mode} mode</div>
-    <div style="font-size: 10px; color: #ccc;">${new Date().toLocaleTimeString()}</div>
-  `;
-  
-  document.body.appendChild(notification);
-  
-  // Remove notification after 5 seconds
-  setTimeout(() => {
-    if (notification.parentNode) {
-      notification.parentNode.removeChild(notification);
-    }
-  }, 5000);
-}
-
-/**
- * Get flipdot display status
- */
-export async function getFlipdotStatus() {
-  try {
-    const response = await fetch('https://i558110.hera.fontysict.net/api-testing/flipdot/status');
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    
-    const status = await response.json();
-    console.log('📊 Flipdot status:', status);
-    return status;
-    
-  } catch (error) {
-    console.error('❌ Error getting flipdot status:', error);
-    return null;
-  }
 }
 
 // =============================================================================
