@@ -1,6 +1,7 @@
 /**
  * Gallery Paintings System - API Integration
  * Fetches GitHub uploads from API and displays them as interactive paintings
+ * Now integrated with flipboard display system
  */
 
 console.log('🎨 Gallery module loading...');
@@ -11,6 +12,7 @@ import {
   LOOK_PRECISION 
 } from './config.js';
 import { getPlayerPosition } from './player.js';
+import { handlePaintingClick } from '../flipboard-simple.js';
 
 // =============================================================================
 // GALLERY PAINTINGS CONFIGURATION
@@ -210,32 +212,32 @@ export function updateGalleryInteractions(canvas, clearMovementKeys) {
         now - gf.lastTrigger > TRIGGER_COOLDOWN) {
       
       console.log(`🖼️ Triggering painting: "${gf.title}" by ${gf.user}`);
-      console.log(`🔗 Opening GitHub repository: ${gf.url}`);
+      console.log(`🔗 Processing repository for flipboard: ${gf.url}`);
       
       // Show info about the painting
-      const info = `🎨 "${gf.title}" by ${gf.user}\n🔗 Opening GitHub repo: ${gf.url}`;
+      const info = `🎨 "${gf.title}" by ${gf.user}\n🎯 Processing for flipboard display...`;
       console.log(info);
       
-      // Notify backend flipboard trigger so dashboard can show selection
-      try {
-        fetch('/api-testing/trigger', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            github_url: gf.url,
-            title: gf.title,
-            user: gf.user,
-            timestamp: gf.timestamp
-          })
-        }).then(r => r.json()).then(res => {
-          console.log('📡 Trigger recorded:', res);
-        }).catch(err => console.warn('⚠️ Trigger post failed:', err.message));
-      } catch (e) {
-        console.warn('⚠️ Trigger error:', e.message);
-      }
-
-      // Open the original GitHub repository URL
-      window.open(gf.url, '_blank');
+      // Process repository for flipboard display
+      handlePaintingClick(gf.url, gf.title)
+        .then(result => {
+          if (result.success) {
+            console.log(`✅ ${result.message}`);
+            console.log(`🖼️ Flipboard image: ${result.imagePath}`);
+            
+            // Also open the original GitHub repository URL
+            window.open(gf.url, '_blank');
+          } else {
+            console.log(`❌ ${result.message}`);
+            // Fallback: just open the GitHub URL
+            window.open(gf.url, '_blank');
+          }
+        })
+        .catch(error => {
+          console.error(`❌ Error processing repository: ${error.message}`);
+          // Fallback: just open the GitHub URL
+          window.open(gf.url, '_blank');
+        });
       
       clearMovementKeys(); // Prevent movement during trigger
       gf.lastTrigger = now;

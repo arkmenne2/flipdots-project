@@ -666,10 +666,6 @@
                 <div class="stat-number" id="currentDate">-</div>
                 <div class="stat-label">Today</div>
             </div>
-            <div class="stat-card">
-                <div class="stat-number" id="flipdotStatus">⚡</div>
-                <div class="stat-label">Flipdot Display</div>
-            </div>
         </div>
         
         <div class="uploads-section">
@@ -743,9 +739,6 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Set current date in header
             document.getElementById('currentDate').textContent = new Date().toLocaleDateString();
-            
-            // Load flipdot status
-            loadFlipdotStatus();
             
             // Debug logging for function availability
             console.log('DOM loaded, testing functions...');
@@ -901,9 +894,6 @@
         // Auto-refresh every 30 seconds
         setInterval(loadUploads, 30000);
         
-        // Auto-refresh flipdot status every 60 seconds
-        setInterval(loadFlipdotStatus, 60000);
-        
         // SIMPLE FIX: Load uploads immediately when page loads
         window.addEventListener('load', function() {
             console.log('Page fully loaded, starting uploads...');
@@ -921,46 +911,6 @@
             console.log('Backup load attempt...');
             loadUploads();
         }, 1000);
-
-        /**
-         * Load and display flipdot display status
-         */
-        async function loadFlipdotStatus() {
-            try {
-                console.log('🔄 Loading flipdot status...');
-                
-                const response = await fetch('https://i558110.hera.fontysict.net/api-testing/flipdot/status');
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                
-                const status = await response.json();
-                console.log('📊 Flipdot status loaded:', status);
-                
-                // Update flipdot status display
-                const flipdotStatusEl = document.getElementById('flipdotStatus');
-                if (flipdotStatusEl) {
-                    if (status.connected) {
-                        flipdotStatusEl.textContent = '🟢';
-                        flipdotStatusEl.title = `Connected - ${status.mode} mode\n${status.display_info.width}x${status.display_info.height} panels\nProcessing count: ${status.processing_count}`;
-                    } else {
-                        flipdotStatusEl.textContent = '🔴';
-                        flipdotStatusEl.title = 'Disconnected';
-                    }
-                }
-                
-            } catch (error) {
-                console.error('❌ Error loading flipdot status:', error);
-                
-                // Update status to show error
-                const flipdotStatusEl = document.getElementById('flipdotStatus');
-                if (flipdotStatusEl) {
-                    flipdotStatusEl.textContent = '❌';
-                    flipdotStatusEl.title = 'Error loading status';
-                }
-            }
-        }
 
         // SIMPLE TEST FUNCTION - This will definitely work
         function simpleTest() {

@@ -1,0 +1,22 @@
+{
+	"name": "flipdots",
+	"version": "1.0.0",
+	"main": "index.js",
+	"type": "module",
+	"scripts": {
+		"dev": "nodemon src/index.js --dev",
+		"start": "node src/index.js"
+	},
+	"author": "Stef van Wijchen (OWOW)",
+	"license": "ISC",
+	"description": "",
+	"devDependencies": {
+		"nodemon": "^3.1.10"
+	},
+	"dependencies": {
+		"@owowagency/flipdot-emu": "file:packages/owowagency-flipdot-emu-1.0.0.tgz",
+		"canvas": "^3.1.0",
+		"express": "^5.1.0",
+		"multer": "^2.0.2"
+	}
+}

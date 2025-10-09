@@ -93,14 +93,6 @@ switch ($path) {
         showUploads();
         break;
         
-    case '/trigger':
-        handleTrigger();
-        break;
-        
-    case '/current':
-        showCurrent();
-        break;
-        
     default:
         header('Content-Type: application/json');
         http_response_code(404);
@@ -219,75 +211,6 @@ function handleSlackEvents() {
     logUpload($githubUrl, $repoInfo, $data);
 }
 
-function handleTrigger() {
-    header('Content-Type: application/json');
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        http_response_code(405);
-        echo json_encode(['error' => 'Method not allowed']);
-        return;
-    }
-
-    // Read JSON body (fallback to form data if needed)
-    $raw = file_get_contents('php://input');
-    $payload = json_decode($raw, true);
-    if (!$payload) {
-        // Try form encoded
-        parse_str($raw, $payload);
-    }
-
-    $githubUrl = isset($payload['github_url']) ? trim($payload['github_url']) : '';
-    $title = isset($payload['title']) ? trim($payload['title']) : '';
-    $user = isset($payload['user']) ? trim($payload['user']) : 'gallery';
-    $timestamp = isset($payload['timestamp']) ? $payload['timestamp'] : date('c');
-
-    if (!$githubUrl || !isValidGitHubUrl($githubUrl)) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Invalid or missing github_url']);
-        return;
-    }
-
-    // Record current selection for flipboard display
-    $current = [
-        'github_url' => $githubUrl,
-        'title' => $title ?: $githubUrl,
-        'user' => $user,
-        'timestamp' => $timestamp
-    ];
-    file_put_contents('current.json', json_encode($current, JSON_PRETTY_PRINT));
-
-    // Also append to uploads as a view event (keeps last 6 consistent)
-    logExternalView($githubUrl, $title, $user, $timestamp);
-
-    echo json_encode(['status' => 'ok', 'current' => $current]);
-}
-
-function logExternalView($githubUrl, $title, $user, $timestamp) {
-    $repoInfo = parseGitHubUrl($githubUrl);
-    if (!$repoInfo) return;
-
-    $logFile = 'uploads.json';
-    $uploads = [];
-    if (file_exists($logFile)) {
-        $content = file_get_contents($logFile);
-        $uploads = json_decode($content, true) ?: [];
-    }
-
-    $upload = [
-        'id' => uniqid('view_'),
-        'timestamp' => $timestamp,
-        'github_url' => $githubUrl,
-        'repository' => $repoInfo['owner'] . '/' . $repoInfo['repo'],
-        'branch' => $repoInfo['branch'],
-        'path' => $repoInfo['path'],
-        'slack_user' => $user,
-        'slack_channel' => 'gallery'
-    ];
-
-    array_unshift($uploads, $upload);
-    $uploads = array_slice($uploads, 0, 6);
-    file_put_contents($logFile, json_encode($uploads, JSON_PRETTY_PRINT));
-}
-
 function logUpload($githubUrl, $repoInfo, $slackData) {
     $logFile = 'uploads.json';
     $uploads = [];
@@ -397,16 +320,6 @@ function showUploads() {
         'total' => count($uploads),
         'uploads' => $uploads
     ], JSON_PRETTY_PRINT);
-}
-
-function showCurrent() {
-    header('Content-Type: application/json');
-    $file = 'current.json';
-    if (file_exists($file)) {
-        echo file_get_contents($file);
-        return;
-    }
-    echo json_encode(['message' => 'No current selection yet']);
 }
 
 function getUploads() {
