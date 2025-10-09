@@ -189,7 +189,7 @@ function updateGalleryFrames(uploads) {
  * @param {Function} clearMovementKeys - Function to clear movement keys
  * @returns {boolean} True if any painting was triggered
  */
-export function updateGalleryInteractions(canvas, clearMovementKeys) {
+export async function updateGalleryInteractions(canvas, clearMovementKeys) {
   const now = performance.now();
   const { x: px, y: py, angle: pa } = getPlayerPosition();
   

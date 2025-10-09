@@ -474,7 +474,7 @@
      * Main game loop - updates game state and renders frame
      * @param {number} now - Current timestamp
      */
-    function gameLoop(now) {
+    async function gameLoop(now) {
       // Calculate delta time with frame rate limiting
       const dt = Math.min(3, (now - last) / (1000 / TARGET_FPS));
       last = now;
@@ -490,7 +490,7 @@
       }
       
       // Handle gallery painting interactions
-      updateGalleryInteractions(canvas, clearMovementKeys);
+      await updateGalleryInteractions(canvas, clearMovementKeys);
       
       // Handle floor item interactions (F key)
       handleFloorInteractions(canvas);
