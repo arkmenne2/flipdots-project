@@ -30,6 +30,12 @@ export let galleryFrames = [
   { x: 8, y: 11, url: 'https://github.com', title: 'Loading...', user: 'system' },
 ];
 
+/**
+ * All uploads from API (not just the 6 displayed as paintings)
+ * This stores the complete list for the sidebar
+ */
+export let allUploads = [];
+
 // =============================================================================
 // API INTEGRATION
 // =============================================================================
@@ -41,10 +47,13 @@ async function loadGalleryData() {
   console.log('🎨 Loading gallery data from API...');
   
   try {
-    // Try multiple API endpoints
+    // Try multiple API endpoints (Next.js API routes first)
     const apiUrls = [
+      '/api/uploads',
       '/uploads',
+      './api/uploads',
       './uploads',
+      'api/uploads',
       'uploads',
       'https://i558110.hera.fontysict.net/api-testing/uploads'
     ];
@@ -62,27 +71,54 @@ async function loadGalleryData() {
         });
         
         if (response.ok) {
-          uploads = await response.json();
-          console.log(`✅ Successfully loaded from: ${apiUrl}`, uploads);
-          break;
+          const data = await response.json();
+          console.log(`✅ Successfully loaded from: ${apiUrl}`, data);
+          
+          // Handle API response format: { total, uploads } or direct array
+          if (data && Array.isArray(data)) {
+            uploads = data;
+          } else if (data && Array.isArray(data.uploads)) {
+            uploads = data.uploads;
+          } else {
+            uploads = null;
+          }
+          
+          if (uploads && uploads.length > 0) {
+            break;
+          }
         }
       } catch (err) {
         console.log(`❌ Failed to load from ${apiUrl}:`, err.message);
       }
     }
     
-    if (!uploads || !Array.isArray(uploads)) {
+    if (!uploads || !Array.isArray(uploads) || uploads.length === 0) {
       console.log('⚠️ No valid uploads data, using demo data');
       uploads = createDemoData();
     }
     
-    // Update gallery frames with API data
+    // Store all uploads for sidebar display
+    allUploads = uploads;
+    
+    // Update gallery frames with API data (only first 6 for paintings)
     updateGalleryFrames(uploads);
+    
+    // Trigger custom event for sidebar update
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('galleryUpdated', { detail: uploads }));
+    }
     
   } catch (error) {
     console.error('❌ Error loading gallery data:', error);
     // Use demo data as fallback
-    updateGalleryFrames(createDemoData());
+    const demoData = createDemoData();
+    allUploads = demoData;
+    updateGalleryFrames(demoData);
+    
+    // Trigger custom event for sidebar update
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('galleryUpdated', { detail: demoData }));
+    }
   }
 }
 
@@ -142,15 +178,31 @@ function updateGalleryFrames(uploads) {
     // Use original GitHub URL directly (not runnable version)
     const githubUrl = upload.github_url;
     
+    // Map API fields to gallery fields
+    // API has: repository (format: "owner/repo"), slack_user
+    // Gallery expects: repo_name, user_name
+    let repoName = 'Unknown Repository';
+    if (upload.repo_name) {
+      repoName = upload.repo_name;
+    } else if (upload.repository) {
+      // Extract repo name from "owner/repo" format
+      const parts = upload.repository.split('/');
+      repoName = parts.length > 1 ? parts[1] : parts[0];
+    }
+    
+    const userName = upload.user_name || upload.slack_user || 'Unknown User';
+    
     galleryFrames.push({
       x: position.x,
       y: position.y,
       url: githubUrl,  // Use original GitHub repo URL
       originalUrl: githubUrl,
-      title: upload.repo_name || 'Unknown Repository',
-      user: upload.user_name || 'Unknown User',
+      title: repoName,
+      user: userName,
       timestamp: upload.timestamp || new Date().toISOString(),
-      lastTrigger: 0
+      lastTrigger: 0,
+      colorIndex: i,  // Store color index for minimap matching
+      uploadIndex: i  // Store original upload index
     });
   }
   
@@ -253,6 +305,44 @@ export function getGalleryFrame(index) {
  */
 export function getGalleryFrameCount() {
   return galleryFrames.length;
+}
+
+/**
+ * Get all uploads (for sidebar display)
+ * @returns {Array} All uploads from API
+ */
+export function getAllUploads() {
+  return allUploads;
+}
+
+/**
+ * Get marker color for a specific gallery frame index
+ * @param {number} index - Gallery frame index
+ * @returns {string} Hex color code
+ */
+export function getMarkerColor(index) {
+  const markerColors = [
+    '#ff0000', // Red
+    '#00ff00', // Green
+    '#0000ff', // Blue
+    '#ffff00', // Yellow
+    '#ff00ff', // Magenta
+    '#00ffff', // Cyan
+    '#ff8800', // Orange
+    '#8800ff', // Purple
+    '#ff0088', // Pink
+    '#00ff88', // Light Green
+  ];
+  return markerColors[index % markerColors.length];
+}
+
+/**
+ * Find gallery frame by GitHub URL
+ * @param {string} githubUrl - GitHub repository URL
+ * @returns {Object|null} Gallery frame object or null
+ */
+export function getGalleryFrameByUrl(githubUrl) {
+  return galleryFrames.find(frame => frame.url === githubUrl || frame.originalUrl === githubUrl);
 }
 
 /**

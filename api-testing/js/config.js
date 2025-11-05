@@ -27,7 +27,7 @@
 export const TRIGGER_DISTANCE = 1.0;
 
 /** Cooldown time between gallery triggers to prevent spam (milliseconds) */
-export const TRIGGER_COOLDOWN = 2000;
+export const TRIGGER_COOLDOWN = 7000;
 
 /** Precision threshold for looking at paintings (radians) - how accurate you need to aim */
 export const LOOK_PRECISION = 0.05;

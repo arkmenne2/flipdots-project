@@ -42,18 +42,22 @@
     /* Main game display container - holds both canvas layers */
     .stage { 
       position: relative; 
-      width: 840px; 
-      height: 280px; 
+      width: 100%;
+      max-width: 1000px;
+      height: 100%;
+      max-height: 100%;
+      aspect-ratio: 3 / 1;
       border: 2px solid #333;                    /* Flipboard-style border */
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);   /* Subtle depth effect */
+      margin: 0 auto;
     }
     
     /* Primary raycaster canvas - scaled 10x for visibility */
     /* This canvas renders the 3D world view */
     #v { 
       image-rendering: pixelated;                /* Pixelated rendering for retro look */
-      width: 840px; 
-      height: 280px; 
+      width: 100%; 
+      height: 100%; 
       background: #000;                          /* Black background */
       display: block; 
     }
@@ -62,8 +66,8 @@
     /* This canvas renders interactive elements on top of the 3D view */
     #post { 
       image-rendering: pixelated;                /* Pixelated rendering for consistency */
-      width: 840px; 
-      height: 280px; 
+      width: 100%; 
+      height: 100%; 
       position: absolute; 
       left: 0; 
       top: 0; 
@@ -73,12 +77,54 @@
     /* Development minimap */
     #mini { 
       image-rendering: pixelated; 
-      width: 256px; 
-      height: 256px; 
+      width: 280px; 
+      height: 280px; 
       background: #222; 
-      margin-left: 24px; 
       border: 2px solid #333;
       box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      flex-shrink: 0;
+    }
+    
+    /* Minimap container with legend */
+    .minimap-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      flex: 0 0 auto;
+      max-height: 30%;
+    }
+    
+    .minimap-legend {
+      background: #000;
+      border: 2px solid #fff;
+      padding: 16px 20px;
+      font-size: 0.9em;
+      color: #ccc;
+      text-align: center;
+      width: 100%;
+      line-height: 1.6;
+      display: none; /* Hide legend for cleaner look */
+    }
+    
+    .minimap-legend strong {
+      color: #fff;
+      display: block;
+      margin-bottom: 10px;
+      font-size: 1.05em;
+    }
+    
+    .minimap-legend div {
+      margin: 6px 0;
+    }
+    
+    /* Ensure minimap canvas is properly sized */
+    #mini {
+      width: 100%;
+      max-width: 240px;
+      height: auto;
+      aspect-ratio: 1;
     }
     
     /* Center layout and flipboard theme */
@@ -88,12 +134,23 @@
       display: flex; 
       flex-direction: column;
       align-items: center; 
-      justify-content: center; 
+      justify-content: flex-start; 
       min-height: 100vh; 
       background: #000;
       font-family: 'Courier New', monospace;
       color: #fff;
       position: relative;
+    }
+    
+    /* Main content wrapper */
+    .main-content {
+      width: 100%;
+      max-width: 1800px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 20px;
     }
     
     /* Flipboard dot matrix effect */
@@ -115,12 +172,15 @@
     /* Header */
     .header {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 32px;
       border: 2px solid #fff;
-      padding: 20px;
+      padding: 28px 40px;
       background: #000;
       position: relative;
       z-index: 1;
+      width: 100%;
+      max-width: 1800px;
+      box-sizing: border-box;
     }
 
     .header h1 {
@@ -138,22 +198,243 @@
       font-size: 1.1em;
     }
 
-    /* Game container */
+    /* Game container - 3 columns */
     .game-container {
+      display: grid;
+      grid-template-columns: 280px 1fr 320px;
+      grid-template-rows: 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+      width: 100%;
+      max-width: 1800px;
+      height: calc(100vh - 280px);
+      min-height: 600px;
+      max-height: 800px;
+      align-items: stretch;
+      padding: 0 20px;
+    }
+    
+    /* Left panel (controls + minimap) */
+    .left-panel {
       display: flex;
-      align-items: flex-start;
-      gap: 20px;
-      margin-bottom: 20px;
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+    
+    /* Game area (center - most important) */
+    .game-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      height: 100%;
+      overflow: hidden;
+    }
+    
+    /* Stage container for better alignment */
+    .stage-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
     }
 
     /* Controls panel */
     .controls {
       background: #000;
-      padding: 20px;
+      padding: 16px;
       border: 2px solid #fff;
-      max-width: 300px;
+      width: 100%;
+      position: relative;
+      overflow-y: auto;
+      overflow-x: hidden;
+      flex: 0 0 auto;
+      max-height: 45%;
+    }
+    
+    .controls h3 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      color: #fff;
+      font-size: 1.1em;
+      position: relative;
+      z-index: 1;
+      text-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+      padding-bottom: 8px;
+      border-bottom: 1px solid #333;
+    }
+    
+    .controls h3:not(:first-child) {
+      margin-top: 16px;
+    }
+    
+    /* Uploads sidebar (right side) */
+    .uploads-sidebar {
+      background: #000;
+      padding: 16px;
+      border: 2px solid #fff;
+      width: 100%;
+      height: 100%;
       position: relative;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .uploads-sidebar::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: 
+          repeating-linear-gradient(
+              90deg,
+              transparent,
+              transparent 8px,
+              rgba(255, 255, 255, 0.02) 8px,
+              rgba(255, 255, 255, 0.02) 16px
+          );
+      pointer-events: none;
+    }
+    
+    .uploads-sidebar h3 {
+      margin-top: 0;
+      color: #fff;
+      font-size: 1.1em;
+      position: relative;
+      z-index: 1;
+      text-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+      border-bottom: 1px solid #333;
+      padding-bottom: 10px;
+      margin-bottom: 12px;
+      flex-shrink: 0;
+    }
+    
+    .uploads-list {
+      overflow-y: auto;
+      flex: 1;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .uploads-list::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    .uploads-list::-webkit-scrollbar-track {
+      background: #000;
+    }
+    
+    .uploads-list::-webkit-scrollbar-thumb {
+      background: #333;
+      border: 1px solid #666;
+    }
+    
+    .uploads-list::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+    
+    .upload-item {
+      background: #111;
+      border: 1px solid #333;
+      padding: 12px;
+      margin-bottom: 10px;
+      transition: all 0.2s ease;
+      position: relative;
+      border-radius: 2px;
+    }
+    
+    .upload-item:hover {
+      border-color: #fff;
+      background: #1a1a1a;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
+    }
+    
+    .upload-item.loading {
+      text-align: center;
+      color: #888;
+      border-color: #666;
+    }
+    
+    .upload-item.empty {
+      text-align: center;
+      color: #666;
+      border-color: #444;
+      font-style: italic;
+    }
+    
+    .upload-item .repo-name {
+      color: #fff;
+      font-weight: bold;
+      margin-bottom: 8px;
+      font-size: 0.95em;
+      word-break: break-word;
+      line-height: 1.3;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .minimap-color-indicator {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid;
+      flex-shrink: 0;
+      box-shadow: 0 0 6px rgba(255, 255, 255, 0.3);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.8;
+        transform: scale(1.1);
+      }
+    }
+    
+    .upload-item .repo-info {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+      font-size: 0.75em;
+      color: #ccc;
+    }
+    
+    .upload-item .repo-info span {
+      background: #000;
+      padding: 3px 6px;
+      border: 1px solid #444;
+      border-radius: 2px;
+    }
+    
+    .upload-item .github-link {
+      display: inline-block;
+      color: #fff;
+      text-decoration: none;
+      border: 1px solid #fff;
+      padding: 6px 12px;
+      font-size: 0.85em;
+      transition: all 0.2s ease;
+      margin-top: 6px;
+      border-radius: 2px;
+    }
+    
+    .upload-item .github-link:hover {
+      background: #fff;
+      color: #000;
     }
     
     .controls::before {
@@ -174,14 +455,6 @@
       pointer-events: none;
     }
 
-    .controls h3 {
-      margin-top: 0;
-      color: #fff;
-      font-size: 1.2em;
-      position: relative;
-      z-index: 1;
-      text-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
-    }
 
     .controls ul {
       list-style: none;
@@ -190,10 +463,12 @@
     }
 
     .controls li {
-      padding: 5px 0;
+      padding: 4px 0;
       color: #ccc;
       position: relative;
       z-index: 1;
+      line-height: 1.4;
+      font-size: 0.9em;
     }
 
     .controls .key {
@@ -209,12 +484,15 @@
     /* Status panel */
     .status {
       background: #000;
-      padding: 15px;
+      padding: 20px 28px;
       border: 2px solid #fff;
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 32px;
       position: relative;
       overflow: hidden;
+      width: 100%;
+      max-width: 1800px;
+      box-sizing: border-box;
     }
     
     .status::before {
@@ -273,8 +551,11 @@
 
     /* Navigation */
     .nav {
-      margin-top: 20px;
+      margin-top: 40px;
       text-align: center;
+      width: 100%;
+      max-width: 1800px;
+      padding: 0 20px;
     }
 
     .nav a {
@@ -333,10 +614,86 @@
     }
 
     /* Responsive design */
+    @media (max-width: 1500px) {
+      .game-container {
+        grid-template-columns: 260px 1fr 280px;
+        gap: 20px;
+        height: calc(100vh - 260px);
+      }
+    }
+    
+    @media (max-width: 1400px) {
+      .game-container {
+        grid-template-columns: 240px 1fr 260px;
+        gap: 18px;
+        height: calc(100vh - 240px);
+      }
+    }
+    
     @media (max-width: 1200px) {
       .game-container {
-        flex-direction: column;
-        align-items: center;
+        grid-template-columns: 220px 1fr 240px;
+        gap: 16px;
+        height: calc(100vh - 220px);
+      }
+      
+      .controls {
+        padding: 12px;
+        max-height: 40%;
+      }
+      
+      .controls h3 {
+        font-size: 1em;
+        margin-bottom: 8px;
+      }
+      
+      .controls li {
+        font-size: 0.85em;
+        padding: 3px 0;
+      }
+      
+      #mini {
+        max-width: 200px;
+      }
+    }
+ 
+    @media (max-width: 900px) {
+      .game-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+        height: auto;
+        min-height: auto;
+        max-height: none;
+      }
+      
+      .left-panel {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        height: auto;
+      }
+      
+      .controls {
+        max-height: none;
+      }
+      
+      .minimap-container {
+        max-height: none;
+      }
+      
+      .uploads-sidebar {
+        grid-column: 1 / -1;
+        height: 300px;
+      }
+      
+      .game-area {
+        height: 400px;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .left-panel {
+        grid-template-columns: 1fr;
       }
       
       .stage {
@@ -355,7 +712,19 @@
       }
     }
 
-    @media (max-width: 800px) {
+    @media (max-width: 700px) {
+      body {
+        padding: 12px;
+      }
+      
+      .header {
+        padding: 16px;
+      }
+      
+      .header h1 {
+        font-size: 2em;
+      }
+      
       .stage {
         width: 420px;
         height: 140px;
@@ -372,50 +741,73 @@
       }
       
       #mini {
-        width: 200px;
-        height: 200px;
+        width: 240px;
+        height: 240px;
+      }
+      
+      .minimap-legend {
+        font-size: 0.75em;
+        padding: 10px 12px;
       }
     }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1>🎨 Flipboard Gallery Room</h1>
-    <p>Your Slack API uploads transformed into interactive 3D paintings!</p>
-  </div>
-
-  <div class="status">
-    <h3>🖼️ Gallery Status</h3>
-    <div id="galleryStatus">Loading paintings...</div>
-  </div>
-
-  <div class="game-container">
-    <div class="stage">
-      <canvas id="v" width="84" height="28"></canvas>
-      <canvas id="post" width="84" height="28"></canvas>
-      <div class="loading" id="loading">Loading 3D Room</div>
+  <div class="main-content">
+    <div class="header">
+      <h1>🎨 Flipboard Gallery Room</h1>
+      <p>Your Slack API uploads transformed into interactive 3D paintings!</p>
     </div>
-    
-    <div class="controls">
-      <h3>🎮 Controls</h3>
-      <ul>
-        <li><span class="key">WASD</span> Move around</li>
-        <li><span class="key">Q/E</span> Turn left/right</li>
-        <li><span class="key">↑↓←→</span> Alternative movement</li>
-        <li><span class="key">F</span> Interact with floor items</li>
-      </ul>
+
+    <div class="status">
+      <h3>🖼️ Gallery Status</h3>
+      <div id="galleryStatus">Loading paintings...</div>
+    </div>
+
+    <div class="game-container">
+      <div class="left-panel">
+        <div class="controls">
+          <h3>🎮 Controls</h3>
+          <ul>
+            <li><span class="key">WASD</span> Move around</li>
+            <li><span class="key">Q/E</span> Turn left/right</li>
+            <li><span class="key">↑↓←→</span> Alternative movement</li>
+            <li><span class="key">F</span> Interact with floor items</li>
+          </ul>
+          
+          <h3>🖼️ Gallery</h3>
+          <ul>
+            <li>🔍 Look closely at paintings to trigger them</li>
+            <li>🔗 Paintings open GitHub repository links</li>
+            <li>🔄 Gallery auto-updates every 30 seconds</li>
+            <li>📱 Up to 6 most recent uploads displayed</li>
+          </ul>
+        </div>
+        
+        <div class="minimap-container">
+          <canvas id="mini" width="128" height="128" title="Minimap - Colored dots show your gallery paintings"></canvas>
+          <div class="minimap-legend"></div>
+        </div>
+      </div>
+        
+      <div class="game-area">
+        <div class="stage-wrapper">
+          <div class="stage">
+            <canvas id="v" width="84" height="28"></canvas>
+            <canvas id="post" width="84" height="28"></canvas>
+            <div class="loading" id="loading">Loading 3D Room</div>
+          </div>
+        </div>
+      </div>
       
-      <h3>🖼️ Gallery</h3>
-      <ul>
-        <li>🔍 Look closely at paintings to trigger them</li>
-        <li>🔗 Paintings open GitHub repository links</li>
-        <li>🔄 Gallery auto-updates every 30 seconds</li>
-        <li>📱 Up to 6 most recent uploads displayed</li>
-      </ul>
+      <div class="uploads-sidebar">
+        <h3>📋 All Uploads</h3>
+        <div id="uploadsList" class="uploads-list">
+          <div class="upload-item loading">Loading uploads...</div>
+        </div>
+      </div>
     </div>
   </div>
-  
-  <canvas id="mini" width="128" height="128" title="Minimap - Blue dots are your API paintings"></canvas>
 
   <div class="nav">
     <a href="dashboard.html">📊 Dashboard</a>
@@ -434,7 +826,7 @@
     
     import { TARGET_FPS } from './js/config.js';
     import { updateMovement, handleFloorInteractions, clearMovementKeys } from './js/player.js';
-    import { updateGalleryInteractions, getGalleryFrameCount, refreshGallery } from './js/gallery.js';
+    import { updateGalleryInteractions, getGalleryFrameCount, refreshGallery, getAllUploads, getMarkerColor, getGalleryFrameByUrl } from './js/gallery.js';
     import { initializeEngine, render, renderMinimap, invalidateCache } from './js/engine.js';
 
     // =============================================================================
@@ -447,6 +839,7 @@
     const mini = document.getElementById('mini');
     const loading = document.getElementById('loading');
     const galleryStatus = document.getElementById('galleryStatus');
+    const uploadsList = document.getElementById('uploadsList');
 
     // Initialize the rendering engine
     initializeEngine(canvas, post, mini);
@@ -463,6 +856,80 @@
     // Update status initially and periodically
     setTimeout(updateGalleryStatus, 2000);
     setInterval(updateGalleryStatus, 5000);
+
+    // =============================================================================
+    // UPLOADS SIDEBAR
+    // =============================================================================
+
+    /**
+     * Update the uploads sidebar with all GitHub links
+     */
+    function updateUploadsSidebar() {
+      const uploads = getAllUploads();
+      
+      if (!uploads || uploads.length === 0) {
+        uploadsList.innerHTML = '<div class="upload-item empty">No uploads yet. Upload via Slack!</div>';
+        return;
+      }
+      
+      uploadsList.innerHTML = uploads.map((upload, index) => {
+        // Extract repo name from repository field or github_url
+        let repoName = 'Unknown Repository';
+        if (upload.repository) {
+          repoName = upload.repository;
+        } else if (upload.github_url) {
+          const match = upload.github_url.match(/github\.com\/([^\/]+\/[^\/]+)/);
+          if (match) {
+            repoName = match[1];
+          }
+        }
+        
+        const userName = upload.slack_user || upload.user_name || 'Unknown User';
+        const branch = upload.branch || 'main';
+        const timestamp = upload.timestamp ? new Date(upload.timestamp).toLocaleString() : 'Unknown date';
+        
+        // Find matching gallery frame to get color
+        const galleryFrame = getGalleryFrameByUrl(upload.github_url);
+        let colorIndicator = '';
+        
+        if (galleryFrame !== null && galleryFrame.colorIndex !== undefined) {
+          const color = getMarkerColor(galleryFrame.colorIndex);
+          colorIndicator = `
+            <div class="minimap-color-indicator" style="background-color: ${color}; border-color: ${color};" title="This color on minimap"></div>
+          `;
+        }
+        
+        return `
+          <div class="upload-item">
+            <div class="repo-name">
+              ${colorIndicator}
+              <span>${repoName}</span>
+            </div>
+            <div class="repo-info">
+              <span>🌿 ${branch}</span>
+              <span>👤 ${userName}</span>
+              <span>📅 ${timestamp}</span>
+            </div>
+            <a href="${upload.github_url}" target="_blank" class="github-link" style="${galleryFrame && galleryFrame.colorIndex !== undefined ? `border-color: ${getMarkerColor(galleryFrame.colorIndex)};` : ''}">🔗 View on GitHub</a>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Update sidebar initially and listen for gallery updates
+    setTimeout(() => {
+      updateUploadsSidebar();
+    }, 2500);
+    
+    // Listen for gallery update events
+    window.addEventListener('galleryUpdated', () => {
+      updateUploadsSidebar();
+    });
+    
+    // Also update periodically
+    setInterval(() => {
+      updateUploadsSidebar();
+    }, 30000);
 
     // =============================================================================
     // GAME LOOP
