@@ -1,1003 +1,290 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!-- 
-  =============================================================================
-  FLIPBOARD 3D GALLERY ROOM
-  =============================================================================
-  
-  This is a 3D raycaster-based gallery room that displays GitHub repositories
-  uploaded via Slack as interactive "paintings" on the walls.
-  
-  Features:
-  - 3D raycaster engine with custom Doom-style rendering
-  - Interactive paintings that open GitHub repository links
-  - Black and white flipboard aesthetic with pixelated graphics
-  - Real-time data loading from PHP API backend
-  - WASD movement controls and mouse look
-  - Minimap display for navigation
-  
-  Technical Details:
-  - Uses HTML5 Canvas for 3D rendering
-  - Modular JavaScript architecture (config.js, engine.js, player.js, etc.)
-  - Fetches upload data from /uploads API endpoint
-  - Converts GitHub URLs to clickable paintings
-  
-  Controls:
-  - WASD: Move around the room
-  - Mouse: Look around
-  - Click paintings: Open GitHub repository in new tab
-  
-  Author: Flipboard Project Team
-  Last Updated: 2024
-  =============================================================================
-  -->
   <meta charset="utf-8" />
-  <title>🎨 Flipboard Gallery Room - Your API Uploads as Paintings</title>
+  <title>🎨 Flipboard 3D Gallery - Preview</title>
   <style>
-    /* =============================================================================
-       FLIPBOARD 3D GALLERY STYLES
-       ============================================================================= */
-    
-    /* Main game display container - holds both canvas layers */
-    .stage { 
-      position: relative; 
-      width: 100%;
-      max-width: 1000px;
-      height: 100%;
-      max-height: 100%;
-      aspect-ratio: 3 / 1;
-      border: 2px solid #333;                    /* Flipboard-style border */
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);   /* Subtle depth effect */
-      margin: 0 auto;
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
     
-    /* Primary raycaster canvas - scaled 10x for visibility */
-    /* This canvas renders the 3D world view */
-    #v { 
-      image-rendering: pixelated;                /* Pixelated rendering for retro look */
-      width: 100%; 
-      height: 100%; 
-      background: #000;                          /* Black background */
-      display: block; 
-    }
-    
-    /* Overlay canvas for UI elements (pillars, frames, paintings) */
-    /* This canvas renders interactive elements on top of the 3D view */
-    #post { 
-      image-rendering: pixelated;                /* Pixelated rendering for consistency */
-      width: 100%; 
-      height: 100%; 
-      position: absolute; 
-      left: 0; 
-      top: 0; 
-      pointer-events: none; 
-    }
-    
-    /* Development minimap */
-    #mini { 
-      image-rendering: pixelated; 
-      width: 280px; 
-      height: 280px; 
-      background: #222; 
-      border: 2px solid #333;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-      flex-shrink: 0;
-    }
-    
-    /* Minimap container with legend */
-    .minimap-container {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 12px;
-      width: 100%;
-      flex: 0 0 auto;
-      max-height: 30%;
-    }
-    
-    .minimap-legend {
-      background: #000;
-      border: 2px solid #fff;
-      padding: 16px 20px;
-      font-size: 0.9em;
-      color: #ccc;
-      text-align: center;
-      width: 100%;
-      line-height: 1.6;
-      display: none; /* Hide legend for cleaner look */
-    }
-    
-    .minimap-legend strong {
-      color: #fff;
-      display: block;
-      margin-bottom: 10px;
-      font-size: 1.05em;
-    }
-    
-    .minimap-legend div {
-      margin: 6px 0;
-    }
-    
-    /* Ensure minimap canvas is properly sized */
-    #mini {
-      width: 100%;
-      max-width: 240px;
-      height: auto;
-      aspect-ratio: 1;
-    }
-    
-    /* Center layout and flipboard theme */
     body { 
-      margin: 0; 
-      padding: 20px;
+      font-family: 'Courier New', monospace;
+      background: #000;
+      color: #fff;
       display: flex; 
       flex-direction: column;
       align-items: center; 
-      justify-content: flex-start; 
+      justify-content: center; 
       min-height: 100vh; 
-      background: #000;
-      font-family: 'Courier New', monospace;
-      color: #fff;
-      position: relative;
-    }
-    
-    /* Main content wrapper */
-    .main-content {
-      width: 100%;
-      max-width: 1800px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 0 20px;
-    }
-    
-    /* Flipboard dot matrix effect */
-    body::before {
-      content: '';
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-image: 
-          radial-gradient(circle at center, #222 1px, transparent 1px);
-      background-size: 12px 12px;
-      opacity: 0.3;
-      pointer-events: none;
-      z-index: -1;
-    }
-
-    /* Header */
-    .header {
-      text-align: center;
-      margin-bottom: 32px;
-      border: 2px solid #fff;
-      padding: 28px 40px;
-      background: #000;
-      position: relative;
-      z-index: 1;
-      width: 100%;
-      max-width: 1800px;
-      box-sizing: border-box;
-    }
-
-    .header h1 {
-      font-size: 2.5em;
-      margin: 0;
-      color: #fff;
-      text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
-      letter-spacing: 2px;
-      font-weight: bold;
-    }
-
-    .header p {
-      margin: 10px 0;
-      color: #ccc;
-      font-size: 1.1em;
-    }
-
-    /* Game container - 3 columns */
-    .game-container {
-      display: grid;
-      grid-template-columns: 280px 1fr 320px;
-      grid-template-rows: 1fr;
-      gap: 24px;
-      margin-bottom: 24px;
-      width: 100%;
-      max-width: 1800px;
-      height: calc(100vh - 280px);
-      min-height: 600px;
-      max-height: 800px;
-      align-items: stretch;
-      padding: 0 20px;
-    }
-    
-    /* Left panel (controls + minimap) */
-    .left-panel {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-    }
-    
-    /* Game area (center - most important) */
-    .game-area {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      flex: 1;
-      height: 100%;
-      overflow: hidden;
-    }
-    
-    /* Stage container for better alignment */
-    .stage-wrapper {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      height: 100%;
-    }
-
-    /* Controls panel */
-    .controls {
-      background: #000;
-      padding: 16px;
-      border: 2px solid #fff;
-      width: 100%;
-      position: relative;
-      overflow-y: auto;
-      overflow-x: hidden;
-      flex: 0 0 auto;
-      max-height: 45%;
-    }
-    
-    .controls h3 {
-      margin-top: 0;
-      margin-bottom: 10px;
-      color: #fff;
-      font-size: 1.1em;
-      position: relative;
-      z-index: 1;
-      text-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
-      padding-bottom: 8px;
-      border-bottom: 1px solid #333;
-    }
-    
-    .controls h3:not(:first-child) {
-      margin-top: 16px;
-    }
-    
-    /* Uploads sidebar (right side) */
-    .uploads-sidebar {
-      background: #000;
-      padding: 16px;
-      border: 2px solid #fff;
-      width: 100%;
-      height: 100%;
-      position: relative;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-    
-    .uploads-sidebar::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: 
-          repeating-linear-gradient(
-              90deg,
-              transparent,
-              transparent 8px,
-              rgba(255, 255, 255, 0.02) 8px,
-              rgba(255, 255, 255, 0.02) 16px
-          );
-      pointer-events: none;
-    }
-    
-    .uploads-sidebar h3 {
-      margin-top: 0;
-      color: #fff;
-      font-size: 1.1em;
-      position: relative;
-      z-index: 1;
-      text-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
-      border-bottom: 1px solid #333;
-      padding-bottom: 10px;
-      margin-bottom: 12px;
-      flex-shrink: 0;
-    }
-    
-    .uploads-list {
-      overflow-y: auto;
-      flex: 1;
-      position: relative;
-      z-index: 1;
-    }
-    
-    .uploads-list::-webkit-scrollbar {
-      width: 8px;
-    }
-    
-    .uploads-list::-webkit-scrollbar-track {
-      background: #000;
-    }
-    
-    .uploads-list::-webkit-scrollbar-thumb {
-      background: #333;
-      border: 1px solid #666;
-    }
-    
-    .uploads-list::-webkit-scrollbar-thumb:hover {
-      background: #555;
-    }
-    
-    .upload-item {
-      background: #111;
-      border: 1px solid #333;
-      padding: 12px;
-      margin-bottom: 10px;
-      transition: all 0.2s ease;
-      position: relative;
-      border-radius: 2px;
-    }
-    
-    .upload-item:hover {
-      border-color: #fff;
-      background: #1a1a1a;
-      box-shadow: 0 0 10px rgba(255, 255, 255, 0.1);
-    }
-    
-    .upload-item.loading {
-      text-align: center;
-      color: #888;
-      border-color: #666;
-    }
-    
-    .upload-item.empty {
-      text-align: center;
-      color: #666;
-      border-color: #444;
-      font-style: italic;
-    }
-    
-    .upload-item .repo-name {
-      color: #fff;
-      font-weight: bold;
-      margin-bottom: 8px;
-      font-size: 0.95em;
-      word-break: break-word;
-      line-height: 1.3;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    
-    .minimap-color-indicator {
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      border: 2px solid;
-      flex-shrink: 0;
-      box-shadow: 0 0 6px rgba(255, 255, 255, 0.3);
-      animation: pulse 2s ease-in-out infinite;
-    }
-    
-    @keyframes pulse {
-      0%, 100% {
-        opacity: 1;
-        transform: scale(1);
-      }
-      50% {
-        opacity: 0.8;
-        transform: scale(1.1);
-      }
-    }
-    
-    .upload-item .repo-info {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      margin-bottom: 8px;
-      font-size: 0.75em;
-      color: #ccc;
-    }
-    
-    .upload-item .repo-info span {
-      background: #000;
-      padding: 3px 6px;
-      border: 1px solid #444;
-      border-radius: 2px;
-    }
-    
-    .upload-item .github-link {
-      display: inline-block;
-      color: #fff;
-      text-decoration: none;
-      border: 1px solid #fff;
-      padding: 6px 12px;
-      font-size: 0.85em;
-      transition: all 0.2s ease;
-      margin-top: 6px;
-      border-radius: 2px;
-    }
-    
-    .upload-item .github-link:hover {
-      background: #fff;
-      color: #000;
-    }
-    
-    .controls::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: 
-          repeating-linear-gradient(
-              90deg,
-              transparent,
-              transparent 8px,
-              rgba(255, 255, 255, 0.02) 8px,
-              rgba(255, 255, 255, 0.02) 16px
-          );
-      pointer-events: none;
-    }
-
-
-    .controls ul {
-      list-style: none;
       padding: 0;
       margin: 0;
-    }
-
-    .controls li {
-      padding: 4px 0;
-      color: #ccc;
-      position: relative;
-      z-index: 1;
-      line-height: 1.4;
-      font-size: 0.9em;
-    }
-
-    .controls .key {
-      background: #000;
-      padding: 2px 6px;
-      border: 1px solid #fff;
-      font-weight: bold;
-      color: #fff;
-      margin-right: 8px;
-      text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
-    }
-
-    /* Status panel */
-    .status {
-      background: #000;
-      padding: 20px 28px;
-      border: 2px solid #fff;
-      text-align: center;
-      margin-bottom: 32px;
-      position: relative;
       overflow: hidden;
-      width: 100%;
-      max-width: 1800px;
-      box-sizing: border-box;
     }
     
-    .status::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: 
-          linear-gradient(45deg, transparent 49%, rgba(255, 255, 255, 0.02) 49%, rgba(255, 255, 255, 0.02) 51%, transparent 51%);
-      background-size: 8px 8px;
-      pointer-events: none;
+    .header {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 12px;
     }
 
-    .status h3 {
-      margin: 0 0 10px 0;
-      color: #fff;
+    h1 {
+      font-size: 14px;
+      margin-bottom: 5px;
+    }
+    
+    .status {
+      font-size: 11px;
+      color: #888;
+    }
+
+    /* Flipboard display preview - Full screen */
+    .flipboard-preview {
+      width: 100vw;
+      height: 100vh;
+      background: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       position: relative;
-      z-index: 1;
-      text-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+    }
+    
+    #flipboard-frame {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: -webkit-crisp-edges;
+      width: 100vw;
+      height: 100vh;
+      object-fit: contain;
+      display: block;
+      background: #000;
     }
 
-    #galleryStatus {
+    .info {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 10px;
+      border-radius: 5px;
+      font-size: 11px;
+      color: #aaa;
+    }
+
+    .info p {
+      margin: 4px 0;
+    }
+    
+    .controls {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    button {
+      background: #333;
       color: #fff;
-      font-weight: bold;
-      position: relative;
-      z-index: 1;
-      text-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+      border: 1px solid #555;
+      padding: 6px 12px;
+      margin: 3px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+    }
+    
+    button:hover {
+      background: #555;
+      border-color: #777;
     }
 
-    /* Loading indicator */
-    .loading {
-      position: absolute;
+    .error {
+      position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      color: #fff;
-      font-family: monospace;
-      font-size: 18px;
+      z-index: 200;
+      color: #f44;
+      padding: 20px;
+      border: 2px solid #f44;
+      background: rgba(0, 0, 0, 0.9);
       text-align: center;
-      text-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+      font-size: 14px;
     }
 
-    .loading::after {
-      content: '...';
-      animation: dots 2s infinite;
-    }
-
-    @keyframes dots {
-      0%, 20% { content: ''; }
-      40% { content: '.'; }
-      60% { content: '..'; }
-      80%, 100% { content: '...'; }
-    }
-
-    /* Navigation */
-    .nav {
-      margin-top: 40px;
-      text-align: center;
-      width: 100%;
-      max-width: 1800px;
-      padding: 0 20px;
-    }
-
-    .nav a {
-      display: inline-block;
-      padding: 12px 24px;
-      margin: 0 10px;
-      background: #000;
-      color: #fff;
-      text-decoration: none;
-      border: 2px solid #fff;
-      font-weight: bold;
-      transition: all 0.2s ease;
-      position: relative;
-      overflow: hidden;
-      font-family: 'Courier New', monospace;
-      text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
-      image-rendering: pixelated;
-    }
-    
-    .nav a::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: 
-          repeating-linear-gradient(
-              90deg,
-              transparent,
-              transparent 4px,
-              rgba(255, 255, 255, 0.05) 4px,
-              rgba(255, 255, 255, 0.05) 8px
-          );
-      transform: translateX(-100%);
-      transition: transform 0.3s ease;
-    }
-
-    .nav a:hover {
-      background: #fff;
-      color: #000;
-      box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
-      text-shadow: none;
-    }
-    
-    .nav a:hover::before {
-      transform: translateX(0);
-      background: 
-          repeating-linear-gradient(
-              90deg,
-              transparent,
-              transparent 4px,
-              rgba(0, 0, 0, 0.05) 4px,
-              rgba(0, 0, 0, 0.05) 8px
-          );
-    }
-
-    /* Responsive design */
-    @media (max-width: 1500px) {
-      .game-container {
-        grid-template-columns: 260px 1fr 280px;
-        gap: 20px;
-        height: calc(100vh - 260px);
-      }
-    }
-    
-    @media (max-width: 1400px) {
-      .game-container {
-        grid-template-columns: 240px 1fr 260px;
-        gap: 18px;
-        height: calc(100vh - 240px);
-      }
-    }
-    
-    @media (max-width: 1200px) {
-      .game-container {
-        grid-template-columns: 220px 1fr 240px;
-        gap: 16px;
-        height: calc(100vh - 220px);
-      }
-      
-      .controls {
-        padding: 12px;
-        max-height: 40%;
-      }
-      
-      .controls h3 {
-        font-size: 1em;
-        margin-bottom: 8px;
-      }
-      
-      .controls li {
-        font-size: 0.85em;
-        padding: 3px 0;
-      }
-      
-      #mini {
-        max-width: 200px;
-      }
-    }
- 
-    @media (max-width: 900px) {
-      .game-container {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto auto auto;
-        height: auto;
-        min-height: auto;
-        max-height: none;
-      }
-      
-      .left-panel {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-        height: auto;
-      }
-      
-      .controls {
-        max-height: none;
-      }
-      
-      .minimap-container {
-        max-height: none;
-      }
-      
-      .uploads-sidebar {
-        grid-column: 1 / -1;
-        height: 300px;
-      }
-      
-      .game-area {
-        height: 400px;
-      }
-    }
-
-    @media (max-width: 900px) {
-      .left-panel {
-        grid-template-columns: 1fr;
-      }
-      
-      .stage {
-        width: 630px;
-        height: 210px;
-      }
-      
-      #v {
-        width: 630px;
-        height: 210px;
-      }
-      
-      #post {
-        width: 630px;
-        height: 210px;
-      }
-    }
-
-    @media (max-width: 700px) {
-      body {
-        padding: 12px;
-      }
-      
-      .header {
-        padding: 16px;
-      }
-      
-      .header h1 {
-        font-size: 2em;
-      }
-      
-      .stage {
-        width: 420px;
-        height: 140px;
-      }
-      
-      #v {
-        width: 420px;
-        height: 140px;
-      }
-      
-      #post {
-        width: 420px;
-        height: 140px;
-      }
-      
-      #mini {
-        width: 240px;
-        height: 240px;
-      }
-      
-      .minimap-legend {
-        font-size: 0.75em;
-        padding: 10px 12px;
-      }
+    .loading {
+      color: #888;
+      margin-top: 20px;
     }
   </style>
 </head>
 <body>
-  <div class="main-content">
-    <div class="header">
-      <h1>🎨 Flipboard Gallery Room</h1>
-      <p>Your Slack API uploads transformed into interactive 3D paintings!</p>
-    </div>
-
-    <div class="status">
-      <h3>🖼️ Gallery Status</h3>
-      <div id="galleryStatus">Loading paintings...</div>
-    </div>
-
-    <div class="game-container">
-      <div class="left-panel">
-        <div class="controls">
-          <h3>🎮 Controls</h3>
-          <ul>
-            <li><span class="key">WASD</span> Move around</li>
-            <li><span class="key">Q/E</span> Turn left/right</li>
-            <li><span class="key">↑↓←→</span> Alternative movement</li>
-            <li><span class="key">F</span> Interact with floor items</li>
-          </ul>
-          
-          <h3>🖼️ Gallery</h3>
-          <ul>
-            <li>🔍 Look closely at paintings to trigger them</li>
-            <li>🔗 Paintings open GitHub repository links</li>
-            <li>🔄 Gallery auto-updates every 30 seconds</li>
-            <li>📱 Up to 6 most recent uploads displayed</li>
-          </ul>
-        </div>
-        
-        <div class="minimap-container">
-          <canvas id="mini" width="128" height="128" title="Minimap - Colored dots show your gallery paintings"></canvas>
-          <div class="minimap-legend"></div>
-        </div>
-      </div>
-        
-      <div class="game-area">
-        <div class="stage-wrapper">
-          <div class="stage">
-            <canvas id="v" width="84" height="28"></canvas>
-            <canvas id="post" width="84" height="28"></canvas>
-            <div class="loading" id="loading">Loading 3D Room</div>
-          </div>
-        </div>
-      </div>
-      
-      <div class="uploads-sidebar">
-        <h3>📋 All Uploads</h3>
-        <div id="uploadsList" class="uploads-list">
-          <div class="upload-item loading">Loading uploads...</div>
-        </div>
-      </div>
-    </div>
+  <div class="header">
+    <h1>🎨 Flipboard 3D Gallery - Live Preview</h1>
+    <div class="status" id="status">Connecting to server...</div>
   </div>
 
-  <div class="nav">
-    <a href="dashboard.html">📊 Dashboard</a>
-    <a href="./">🔧 API Info</a>
-    <a href="uploads">📋 View JSON Data</a>
+  <div class="flipboard-preview">
+    <div id="loading-spinner" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; font-size: 14px;">
+      Loading frames...
+    </div>
+    <img id="flipboard-frame" src="" alt="Flipboard Frame" style="display: none;" />
   </div>
 
-  <!-- Three.js for hardware acceleration -->
-  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <div class="info">
+    <p><strong>Display Size:</strong> 84×28 pixels (3:1 aspect ratio)</p>
+    <p><strong>Resolution:</strong> Black & White binary (exactly as sent to flipboard)</p>
+    <p><strong>Frame Rate:</strong> 15 FPS</p>
+    <p><strong>Server:</strong> <span id="server-status">Not connected</span></p>
+    </div>
+    
+    <div class="controls">
+    <button onclick="location.reload()">🔄 Refresh</button>
+    <button onclick="toggleAutoRefresh()">⏸️ <span id="auto-refresh-text">Pause</span></button>
+    <button onclick="saveFrame()">💾 Save Frame</button>
+  </div>
   
-  <!-- Main application script -->
-  <script type="module">
-    // =============================================================================
-    // MAIN APPLICATION ENTRY POINT
-    // =============================================================================
+  <div id="error" class="error" style="display: none;"></div>
+  
+  <script>
+    // Detect base path from current location
+    // If we're at /api-testing/room.html, base path is /api-testing
+    // If we're at /room.html, base path is empty
+    const pathParts = window.location.pathname.split('/').filter(p => p);
+    const basePath = pathParts.length > 1 ? '/' + pathParts.slice(0, -1).join('/') : '';
+    const API_BASE = window.location.origin + basePath;
+    const frameImg = document.getElementById('flipboard-frame');
+    const statusEl = document.getElementById('status');
+    const serverStatusEl = document.getElementById('server-status');
+    const errorEl = document.getElementById('error');
+    let autoRefresh = true;
+    let frameCount = 0;
+    let lastUpdate = Date.now();
+    let errorCount = 0;
     
-    import { TARGET_FPS } from './js/config.js';
-    import { updateMovement, handleFloorInteractions, clearMovementKeys } from './js/player.js';
-    import { updateGalleryInteractions, getGalleryFrameCount, refreshGallery, getAllUploads, getMarkerColor, getGalleryFrameByUrl } from './js/gallery.js';
-    import { initializeEngine, render, renderMinimap, invalidateCache } from './js/engine.js';
-
-    // =============================================================================
-    // INITIALIZATION
-    // =============================================================================
-
-    // Get canvas elements
-    const canvas = document.getElementById('v');
-    const post = document.getElementById('post');
-    const mini = document.getElementById('mini');
-    const loading = document.getElementById('loading');
-    const galleryStatus = document.getElementById('galleryStatus');
-    const uploadsList = document.getElementById('uploadsList');
-
-    // Initialize the rendering engine
-    initializeEngine(canvas, post, mini);
-
-    // Hide loading indicator
-    loading.style.display = 'none';
-
-    // Update gallery status
-    function updateGalleryStatus() {
-      const count = getGalleryFrameCount();
-      galleryStatus.textContent = `${count} paintings loaded from API`;
+    console.log('🎨 Initializing frame viewer...');
+    console.log('📍 Current path:', window.location.pathname);
+    console.log('📍 Detected base path:', basePath);
+    console.log('📍 API Base:', API_BASE);
+    
+    function updateFrame() {
+      const timestamp = Date.now();
+      // Add timestamp to prevent caching
+      const frameUrl = `${API_BASE}/api/frame?t=${timestamp}`;
+      console.log('📡 Fetching frame:', frameUrl);
+      frameImg.src = frameUrl;
     }
+    
+    frameImg.onload = () => {
+      frameCount++;
+      errorCount = 0; // Reset error count on success
+      lastUpdate = Date.now();
 
-    // Update status initially and periodically
-    setTimeout(updateGalleryStatus, 2000);
-    setInterval(updateGalleryStatus, 5000);
-
-    // =============================================================================
-    // UPLOADS SIDEBAR
-    // =============================================================================
-
-    /**
-     * Update the uploads sidebar with all GitHub links
-     */
-    function updateUploadsSidebar() {
-      const uploads = getAllUploads();
-      
-      if (!uploads || uploads.length === 0) {
-        uploadsList.innerHTML = '<div class="upload-item empty">No uploads yet. Upload via Slack!</div>';
-        return;
+      // Show image once first frame loads
+      if (frameCount === 1) {
+        frameImg.style.display = 'block';
+        const spinner = document.getElementById('loading-spinner');
+        if (spinner) spinner.style.display = 'none';
+        console.log('✅ First frame loaded successfully!');
       }
       
-      uploadsList.innerHTML = uploads.map((upload, index) => {
-        // Extract repo name from repository field or github_url
-        let repoName = 'Unknown Repository';
-        if (upload.repository) {
-          repoName = upload.repository;
-        } else if (upload.github_url) {
-          const match = upload.github_url.match(/github\.com\/([^\/]+\/[^\/]+)/);
-          if (match) {
-            repoName = match[1];
+      statusEl.textContent = `Frame #${frameCount} | Last update: ${new Date().toLocaleTimeString()}`;
+      serverStatusEl.textContent = 'Connected';
+      errorEl.style.display = 'none';
+      
+      if (autoRefresh) {
+        setTimeout(updateFrame, 1000 / 15); // 15 FPS
+      }
+    };
+    
+    function handleError(err) {
+      errorCount++;
+      errorEl.textContent = `Error: ${err.message || 'Failed to load frame'} (attempt ${errorCount})`;
+      errorEl.style.display = 'block';
+      serverStatusEl.textContent = 'Disconnected';
+      statusEl.textContent = `Connection error - make sure server is running on ${API_BASE}`;
+      console.error('❌ Frame load error:', err);
+    }
+    
+    frameImg.onerror = (e) => {
+      console.error('❌ Image load error:', e);
+      console.error('   Attempted URL:', frameImg.src);
+      handleError(new Error(`Failed to load frame from ${API_BASE}/api/frame`));
+      if (autoRefresh) {
+        setTimeout(updateFrame, 2000); // Retry after 2 seconds
+      }
+    };
+    
+    function toggleAutoRefresh() {
+      autoRefresh = !autoRefresh;
+      const textEl = document.getElementById('auto-refresh-text');
+      textEl.textContent = autoRefresh ? 'Pause' : 'Resume';
+      
+      if (autoRefresh) {
+        updateFrame();
+    }
+    }
+    
+    // Test server connection first
+    fetch(`${API_BASE}/health`)
+      .then(res => res.json())
+      .then(data => {
+        console.log('✅ Server health check:', data);
+        serverStatusEl.textContent = 'Server online';
+        // Start loading frames after health check
+        console.log('🚀 Starting frame updates...');
+        updateFrame();
+      })
+      .catch(err => {
+        console.error('❌ Server health check failed:', err);
+        console.error('   Make sure the server is running on', API_BASE);
+        handleError(new Error('Cannot connect to server. Is it running?'));
+        // Still try to load frames
+        console.log('🚀 Starting frame updates (will retry on error)...');
+        updateFrame();
+      });
+    
+    // Save current frame to disk (on demand)
+    function saveFrame() {
+      fetch(`${API_BASE}/api/save-frame`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            statusEl.textContent = `✅ Frame saved: ${data.filename}`;
+            setTimeout(() => {
+              statusEl.textContent = `Frame #${frameCount} | Last update: ${new Date().toLocaleTimeString()}`;
+            }, 3000);
+          } else {
+            handleError(new Error(data.error || 'Failed to save frame'));
           }
-        }
-        
-        const userName = upload.slack_user || upload.user_name || 'Unknown User';
-        const branch = upload.branch || 'main';
-        const timestamp = upload.timestamp ? new Date(upload.timestamp).toLocaleString() : 'Unknown date';
-        
-        // Find matching gallery frame to get color
-        const galleryFrame = getGalleryFrameByUrl(upload.github_url);
-        let colorIndicator = '';
-        
-        if (galleryFrame !== null && galleryFrame.colorIndex !== undefined) {
-          const color = getMarkerColor(galleryFrame.colorIndex);
-          colorIndicator = `
-            <div class="minimap-color-indicator" style="background-color: ${color}; border-color: ${color};" title="This color on minimap"></div>
-          `;
-        }
-        
-        return `
-          <div class="upload-item">
-            <div class="repo-name">
-              ${colorIndicator}
-              <span>${repoName}</span>
-            </div>
-            <div class="repo-info">
-              <span>🌿 ${branch}</span>
-              <span>👤 ${userName}</span>
-              <span>📅 ${timestamp}</span>
-            </div>
-            <a href="${upload.github_url}" target="_blank" class="github-link" style="${galleryFrame && galleryFrame.colorIndex !== undefined ? `border-color: ${getMarkerColor(galleryFrame.colorIndex)};` : ''}">🔗 View on GitHub</a>
-          </div>
-        `;
-      }).join('');
+        })
+        .catch(err => {
+          handleError(err);
+        });
     }
-
-    // Update sidebar initially and listen for gallery updates
-    setTimeout(() => {
-      updateUploadsSidebar();
-    }, 2500);
     
-    // Listen for gallery update events
-    window.addEventListener('galleryUpdated', () => {
-      updateUploadsSidebar();
-    });
-    
-    // Also update periodically
-    setInterval(() => {
-      updateUploadsSidebar();
-    }, 30000);
-
-    // =============================================================================
-    // GAME LOOP
-    // =============================================================================
-
-    let last = performance.now();
-
-    /**
-     * Main game loop - updates game state and renders frame
-     * @param {number} now - Current timestamp
-     */
-    async function gameLoop(now) {
-      // Calculate delta time with frame rate limiting
-      const dt = Math.min(3, (now - last) / (1000 / TARGET_FPS));
-      last = now;
-      
-      // =============================================================================
-      // UPDATE PHASE
-      // =============================================================================
-      
-      // Update player movement and check if cache needs invalidation
-      const playerMoved = updateMovement(dt);
-      if (playerMoved) {
-        invalidateCache(); // Invalidate rendering cache when player rotates
-      }
-      
-      // Handle gallery painting interactions
-      await updateGalleryInteractions(canvas, clearMovementKeys);
-      
-      // Handle floor item interactions (F key)
-      handleFloorInteractions(canvas);
-      
-      // =============================================================================
-      // RENDER PHASE
-      // =============================================================================
-      
-      // Render 3D scene
-      render();
-      
-      // Render development minimap
-      renderMinimap();
-      
-      // Schedule next frame
-      requestAnimationFrame(gameLoop);
-    }
-
-    // =============================================================================
-    // START APPLICATION
-    // =============================================================================
-
-    // Start the game loop
-    requestAnimationFrame(gameLoop);
-
-    // =============================================================================
-    // DEBUG INFORMATION
-    // =============================================================================
-
-    console.log('🎨 Flipboard Gallery Room');
-    console.log('📁 Modular architecture loaded');
-    console.log('🎯 Target FPS:', TARGET_FPS);
-    console.log('🖼️ Gallery paintings loaded from API');
-    console.log('🗺️ World map initialized');
-    console.log('🎮 Controls: WASD/Arrow keys to move, QE to turn, F to interact');
-    console.log('🖼️ Look at paintings closely to trigger them');
-    
-    // Manual refresh function for debugging
-    window.refreshGallery = refreshGallery;
-    console.log('💡 Type refreshGallery() in console to manually refresh paintings');
+    // Check server health
+    fetch(`${API_BASE}/health`)
+      .then(res => res.json())
+      .then(data => {
+        console.log('Server health:', data);
+      })
+      .catch(err => {
+        console.error('Server health check failed:', err);
+        handleError(err);
+      });
   </script>
 </body>
 </html>

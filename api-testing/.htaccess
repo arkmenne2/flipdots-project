@@ -1,7 +1,12 @@
 # Enable URL rewriting
 RewriteEngine On
 
-# Handle all requests through index.php
+# Allow serving static files from test-flipboard-upload directory
+RewriteCond %{REQUEST_URI} ^/test-flipboard-upload/
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^test-flipboard-upload/(.+)$ test-flipboard-upload/$1 [L]
+
+# Handle all other requests through index.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ index.php [QSA,L]

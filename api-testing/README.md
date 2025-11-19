@@ -2,6 +2,8 @@
 
 A Slack app that allows users to upload and share flipboard GitHub repositories using slash commands.
 
+> Looking for the Bun-based flipboard/LED renderer? See [`README-BUN.md`](./docs/README-BUN.md) and [`START-SERVER.md`](./docs/START-SERVER.md).
+
 ## Features
 
 - `/upload-flipboard` slash command to share GitHub repositories
@@ -15,7 +17,11 @@ A Slack app that allows users to upload and share flipboard GitHub repositories 
 ### 1. Install Dependencies
 
 ```bash
+# Slack/PHP backend
 npm install
+
+# Bun renderer (runs inside api-testing/)
+bun install
 ```
 
 ### 2. Configure Environment
@@ -51,15 +57,8 @@ Important: Never commit real secrets to git. Create a local `.env` file and ensu
 
 ### 5. Run the Server
 
-For development:
-```bash
-npm run dev
-```
-
-For production:
-```bash
-npm start
-```
+- **Slack PHP backend (Apache/Nginx + PHP):** deploy `index.php` and ensure `/slack/events` is reachable.
+- **Bun renderer (flipdots / LED):** follow [`README-BUN.md`](./docs/README-BUN.md) for `bun run dev` / `bun start`.
 
 ## Usage
 

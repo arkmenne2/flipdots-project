@@ -1,15 +1,17 @@
 {
   "name": "flipboard-slack-api",
   "version": "1.0.0",
-  "description": "Slack app for uploading flipboard GitHub links",
-  "main": "server.js",
+  "description": "Slack app for uploading flipboard GitHub links - Bun server for Raspberry Pi",
+  "main": "server-bun.ts",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon server.js"
+    "start": "bun run server-bun.ts",
+    "dev": "bun run server-bun.ts --dev"
   },
   "dependencies": {
+    "@owowagency/flipdot-emu": "file:packages/owowagency-flipdot-emu-1.0.0.tgz",
     "@slack/bolt": "^3.17.1",
     "axios": "^1.6.2",
+    "canvas": "^3.2.0",
     "dotenv": "^16.3.1",
     "download-git-repo": "^3.0.2",
     "express": "^4.18.2"
@@ -21,7 +23,9 @@
     "slack",
     "flipboard",
     "github",
-    "api"
+    "api",
+    "bun",
+    "raspberry-pi"
   ],
   "author": "",
   "license": "MIT"

@@ -98,6 +98,12 @@ switch ($path) {
         break;
         
     default:
+        // Check if request is for a file in test-flipboard-upload directory
+        if (preg_match('#^/test-flipboard-upload/(.+)$#', $path, $matches)) {
+            serveDownloadedFile($matches[1]);
+            break;
+        }
+        
         header('Content-Type: application/json');
         http_response_code(404);
         echo json_encode(['error' => 'Endpoint not found']);
@@ -378,6 +384,63 @@ function commandExists($cmd) {
     $returnCode = 0;
     exec($where . ' ' . escapeshellarg($cmd) . ' 2>&1', $output, $returnCode);
     return $returnCode === 0 && !empty($output) && trim($output[0]) !== '';
+}
+
+/**
+ * Serve files from downloaded repositories
+ * Route: GET /test-flipboard-upload/dir-name/path/to/file
+ * 
+ * This allows serving downloaded HTML files and their assets
+ */
+function serveDownloadedFile($filePath) {
+    // Security: prevent directory traversal
+    $filePath = str_replace(['..', "\0"], '', $filePath);
+    
+    // Build full file path
+    $baseDir = __DIR__ . DIRECTORY_SEPARATOR . 'test-flipboard-upload';
+    $fullPath = $baseDir . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $filePath);
+    
+    // Security: ensure file is within base directory
+    $realBaseDir = realpath($baseDir);
+    $realFilePath = realpath($fullPath);
+    
+    if (!$realFilePath || strpos($realFilePath, $realBaseDir) !== 0) {
+        http_response_code(404);
+        echo 'File not found';
+        return;
+    }
+    
+    // Check if file exists
+    if (!file_exists($realFilePath) || !is_file($realFilePath)) {
+        http_response_code(404);
+        echo 'File not found';
+        return;
+    }
+    
+    // Set appropriate content type
+    $extension = strtolower(pathinfo($realFilePath, PATHINFO_EXTENSION));
+    $contentTypes = [
+        'html' => 'text/html',
+        'htm' => 'text/html',
+        'js' => 'application/javascript',
+        'css' => 'text/css',
+        'json' => 'application/json',
+        'png' => 'image/png',
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'gif' => 'image/gif',
+        'svg' => 'image/svg+xml',
+        'woff' => 'font/woff',
+        'woff2' => 'font/woff2',
+        'ttf' => 'font/ttf',
+        'otf' => 'font/otf'
+    ];
+    
+    $contentType = $contentTypes[$extension] ?? 'application/octet-stream';
+    header('Content-Type: ' . $contentType);
+    
+    // Read and output file
+    readfile($realFilePath);
 }
 
 function logUpload($githubUrl, $repoInfo, $slackData) {

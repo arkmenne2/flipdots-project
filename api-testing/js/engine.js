@@ -385,32 +385,10 @@ export function renderMinimap() {
     }
   }
 
-  // Draw gallery paintings with different colors
-  const markerColors = [
-    '#ff0000', // Red
-    '#00ff00', // Green
-    '#0000ff', // Blue
-    '#ffff00', // Yellow
-    '#ff00ff', // Magenta
-    '#00ffff', // Cyan
-    '#ff8800', // Orange
-    '#8800ff', // Purple
-    '#ff0088', // Pink
-    '#00ff88', // Light Green
-  ];
-  
+  // Draw gallery paintings as blue dots
+  mctx.fillStyle = '#00f';
   for (let i = 0; i < galleryFrames.length; i++) {
     const gf = galleryFrames[i];
-    
-    // Skip empty slots
-    if (gf.title === 'Empty Slot' || gf.url === 'https://github.com') {
-      continue;
-    }
-    
-    // Use color based on index, cycling through the array
-    const colorIndex = i % markerColors.length;
-    mctx.fillStyle = markerColors[colorIndex];
-    
     let gx = offsetX + gf.x * cell;
     let gy = offsetY + gf.y * cell;
     
@@ -425,11 +403,6 @@ export function renderMinimap() {
     mctx.beginPath();
     mctx.arc(gx, gy, r, 0, Math.PI * 2);
     mctx.fill();
-    
-    // Add a white border to make markers more visible
-    mctx.strokeStyle = '#fff';
-    mctx.lineWidth = 1;
-    mctx.stroke();
   }
 
   // Draw player position and direction
