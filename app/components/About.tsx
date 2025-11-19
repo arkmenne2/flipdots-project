@@ -6,10 +6,18 @@ interface FlipdotProps {
   index: number;
 }
 
+// Deterministic pseudo-random function based on seed
+function seededRandom(seed: number) {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+}
+
 function Flipdot({ index }: FlipdotProps) {
   const [isActive, setIsActive] = useState(false);
-  const [animationDelay] = useState(Math.random() * 2000);
-  const [animationType] = useState(Math.floor(Math.random() * 3));
+  // Use deterministic values based on index to avoid hydration mismatch
+  // Round to 3 decimal places to ensure consistent server/client rendering
+  const animationDelay = Math.round(seededRandom(index) * 2000 * 1000) / 1000;
+  const animationType = Math.floor(seededRandom(index * 7) * 3);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -36,8 +44,8 @@ function Flipdot({ index }: FlipdotProps) {
         break;
     }
 
-    // Initial random state
-    setIsActive(Math.random() > 0.5);
+    // Initial deterministic state based on index
+    setIsActive(seededRandom(index * 13) > 0.5);
 
     return () => clearInterval(interval);
   }, [animationDelay, animationType, index]);
@@ -47,10 +55,9 @@ function Flipdot({ index }: FlipdotProps) {
       className={`
         aspect-square rounded-full transition-all duration-300 ease-in-out
         ${isActive 
-          ? 'bg-white shadow-lg shadow-white/30 scale-105' 
+          ? 'bg-white shadow-lg shadow-white/30' 
           : 'bg-gray-800 shadow-inner scale-100'
         }
-        hover:scale-110 hover:shadow-xl
       `}
       style={{
         animationDelay: `${animationDelay}ms`,
@@ -77,34 +84,6 @@ export default function About() {
                 Originally developed for transportation signage in the 1950s, flip-dot technology has evolved into a versatile display solution perfect for art installations, retail displays, information boards, and creative projects.
               </p>
               
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-6 mt-8">
-              <div>
-                <div className="font-heading text-3xl font-bold text-primary">
-                6+
-                </div>
-                <div className="font-body text-sm text-foreground/70">
-                  Widgets Available
-                </div>
-              </div>
-              <div>
-                <div className="font-heading text-3xl font-bold text-primary">
-                  100k+
-                </div>
-                <div className="font-body text-sm text-foreground/70">
-                  Dots Flipped
-                </div>
-              </div>
-              <div>
-                <div className="font-heading text-3xl font-bold text-primary">
-                  <p>{'<100ms'}</p>
-                </div>
-                <div className="font-body text-sm text-foreground/70">
-                  Latency
-                </div>
-              </div>
             </div>
           </div>
 
