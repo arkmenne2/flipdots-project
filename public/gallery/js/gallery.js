@@ -5,10 +5,10 @@
 
 console.log('🎨 Gallery module loading...');
 
-import { 
-  TRIGGER_DISTANCE, 
-  TRIGGER_COOLDOWN, 
-  LOOK_PRECISION 
+import {
+  TRIGGER_DISTANCE,
+  TRIGGER_COOLDOWN,
+  LOOK_PRECISION
 } from './config.js';
 import { getPlayerPosition } from './player.js';
 
@@ -22,12 +22,12 @@ import { getPlayerPosition } from './player.js';
  */
 export let galleryFrames = [
   // Default paintings (will be replaced by API data)
-  { x: 11, y: 6, url: 'https://github.com', title: 'Loading...', user: 'system' },
-  { x: 1, y: 6, url: 'https://github.com', title: 'Loading...', user: 'system' },
-  { x: 6, y: 1, url: 'https://github.com', title: 'Loading...', user: 'system' },
-  { x: 6, y: 11, url: 'https://github.com', title: 'Loading...', user: 'system' },
-  { x: 3, y: 1, url: 'https://github.com', title: 'Loading...', user: 'system' },
-  { x: 8, y: 11, url: 'https://github.com', title: 'Loading...', user: 'system' },
+  { x: 3, y: 0.5, url: 'https://github.com', title: 'Loading...', user: 'system' },
+  { x: 6, y: 0.5, url: 'https://github.com', title: 'Loading...', user: 'system' },
+  { x: 3, y: 4.5, url: 'https://github.com', title: 'Loading...', user: 'system' },
+  { x: 6, y: 4.5, url: 'https://github.com', title: 'Loading...', user: 'system' },
+  { x: 9.5, y: 4.5, url: 'https://github.com', title: 'Loading...', user: 'system' },
+  { x: 10.5, y: 2.5, url: 'https://github.com', title: 'Loading...', user: 'system' },
 ];
 
 /**
@@ -45,7 +45,7 @@ export let allUploads = [];
  */
 async function loadGalleryData() {
   console.log('🎨 Loading gallery data from API...');
-  
+
   try {
     // Try multiple API endpoints (Next.js API routes first)
     const apiUrls = [
@@ -57,7 +57,7 @@ async function loadGalleryData() {
       'uploads',
       'https://i558110.hera.fontysict.net/api-testing/uploads'
     ];
-    
+
     let uploads = null;
     for (const apiUrl of apiUrls) {
       try {
@@ -69,11 +69,11 @@ async function loadGalleryData() {
             'Accept': 'application/json'
           }
         });
-        
+
         if (response.ok) {
           const data = await response.json();
           console.log(`✅ Successfully loaded from: ${apiUrl}`, data);
-          
+
           // Handle API response format: { total, uploads } or direct array
           if (data && Array.isArray(data)) {
             uploads = data;
@@ -82,7 +82,7 @@ async function loadGalleryData() {
           } else {
             uploads = null;
           }
-          
+
           if (uploads && uploads.length > 0) {
             break;
           }
@@ -91,30 +91,30 @@ async function loadGalleryData() {
         console.log(`❌ Failed to load from ${apiUrl}:`, err.message);
       }
     }
-    
+
     if (!uploads || !Array.isArray(uploads) || uploads.length === 0) {
       console.log('⚠️ No valid uploads data, using demo data');
       uploads = createDemoData();
     }
-    
+
     // Store all uploads for sidebar display
     allUploads = uploads;
-    
+
     // Update gallery frames with API data (only first 6 for paintings)
     updateGalleryFrames(uploads);
-    
+
     // Trigger custom event for sidebar update
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('galleryUpdated', { detail: uploads }));
     }
-    
+
   } catch (error) {
     console.error('❌ Error loading gallery data:', error);
     // Use demo data as fallback
     const demoData = createDemoData();
     allUploads = demoData;
     updateGalleryFrames(demoData);
-    
+
     // Trigger custom event for sidebar update
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('galleryUpdated', { detail: demoData }));
@@ -154,30 +154,41 @@ function createDemoData() {
  */
 function updateGalleryFrames(uploads) {
   console.log('🖼️ Updating gallery frames with data:', uploads);
-  
+
   // Fixed painting positions on the walls
   const positions = [
-    { x: 11, y: 6 },  // Right wall center
-    { x: 1, y: 6 },   // Left wall center  
-    { x: 6, y: 1 },   // Top wall center
-    { x: 6, y: 11 },  // Bottom wall center
-    { x: 3, y: 1 },   // Top wall left
-    { x: 8, y: 11 },  // Bottom wall right
+    { x: 3, y: 0.5 },  // Right wall center
+    { x: 6, y: 0.5 },   // Left wall center  
+    { x: 3, y: 4.5 },   // Top wall center
+    { x: 6, y: 4.5 },  // Bottom wall center
+    { x: 9.5, y: 4.5 },   // Top wall left
+    { x: 9.5, y: 0.5},
+    { x: 10.5, y: 2.5 },  // Bottom wall right
   ];
-  
+
+  // export let galleryFrames = [
+  //   // Default paintings (will be replaced by API data)
+  //   { x: 3, y: 0.5, url: 'https://github.com', title: 'Loading...', user: 'system' },
+  //   { x: 6, y: 0.5, url: 'https://github.com', title: 'Loading...', user: 'system' },
+  //   { x: 3, y: 4.5, url: 'https://github.com', title: 'Loading...', user: 'system' },
+  //   { x: 6, y: 4.5, url: 'https://github.com', title: 'Loading...', user: 'system' },
+  //   { x: 9.5, y: 4.5, url: 'https://github.com', title: 'Loading...', user: 'system' },
+  //   { x: 10.5, y: 2.5, url: 'https://github.com', title: 'Loading...', user: 'system' },
+  // ];
+
   // Clear existing frames
   galleryFrames.length = 0;
-  
+
   // Create new frames from uploads (up to 6)
   const maxPaintings = Math.min(uploads.length, positions.length);
-  
+
   for (let i = 0; i < maxPaintings; i++) {
     const upload = uploads[i];
     const position = positions[i];
-    
+
     // Use original GitHub URL directly (not runnable version)
     const githubUrl = upload.github_url;
-    
+
     // Map API fields to gallery fields
     // API has: repository (format: "owner/repo"), slack_user
     // Gallery expects: repo_name, user_name
@@ -189,9 +200,9 @@ function updateGalleryFrames(uploads) {
       const parts = upload.repository.split('/');
       repoName = parts.length > 1 ? parts[1] : parts[0];
     }
-    
+
     const userName = upload.user_name || upload.slack_user || 'Unknown User';
-    
+
     galleryFrames.push({
       x: position.x,
       y: position.y,
@@ -205,7 +216,7 @@ function updateGalleryFrames(uploads) {
       uploadIndex: i  // Store original upload index
     });
   }
-  
+
   // Fill remaining positions with default entries if needed
   while (galleryFrames.length < positions.length) {
     const position = positions[galleryFrames.length];
@@ -220,9 +231,9 @@ function updateGalleryFrames(uploads) {
       lastTrigger: 0
     });
   }
-  
+
   console.log(`✅ Gallery updated with ${galleryFrames.length} paintings`);
-  
+
   // Log painting info for debugging
   galleryFrames.forEach((frame, i) => {
     console.log(`🖼️ Painting ${i + 1}: "${frame.title}" by ${frame.user} at (${frame.x}, ${frame.y})`);
@@ -244,44 +255,44 @@ function updateGalleryFrames(uploads) {
 export async function updateGalleryInteractions(canvas, clearMovementKeys) {
   const now = performance.now();
   const { x: px, y: py, angle: pa } = getPlayerPosition();
-  
+
   for (let i = 0; i < galleryFrames.length; i++) {
     const gf = galleryFrames[i];
     if (!gf.lastTrigger) gf.lastTrigger = 0;
-    
+
     const dist = Math.hypot(gf.x - px, gf.y - py);
-    
+
     // Check if player is looking directly at the painting
     const angle = Math.atan2(gf.y - py, gf.x - px);
     let delta = angle - pa;
     delta = Math.atan2(Math.sin(delta), Math.cos(delta)); // Normalize to [-π, π]
-    
+
     // Trigger if: close enough + looking at it + cooldown expired
-    if (dist < TRIGGER_DISTANCE && 
-        Math.abs(delta) < LOOK_PRECISION && 
-        now - gf.lastTrigger > TRIGGER_COOLDOWN) {
-      
+    if (dist < TRIGGER_DISTANCE &&
+      Math.abs(delta) < LOOK_PRECISION &&
+      now - gf.lastTrigger > TRIGGER_COOLDOWN) {
+
       console.log(`🖼️ Triggering painting: "${gf.title}" by ${gf.user}`);
       console.log(`🔗 Opening GitHub repository: ${gf.url}`);
-      
+
       // Show info about the painting
       const info = `🎨 "${gf.title}" by ${gf.user}\n🔗 Opening GitHub repo: ${gf.url}`;
       console.log(info);
-      
+
       // Trigger backend repo download instead of opening GitHub directly
       try {
         await triggerRepoDownload(gf.url);
       } catch (e) {
         console.error('Download trigger failed:', e);
       }
-      
+
       clearMovementKeys(); // Prevent movement during trigger
       gf.lastTrigger = now;
       canvas.focus && canvas.focus();
       return true; // Only trigger one painting per frame
     }
   }
-  
+
   return false;
 }
 
@@ -335,6 +346,20 @@ export function getMarkerColor(index) {
   ];
   return markerColors[index % markerColors.length];
 }
+
+// Index of the cyan marker inside markerColors
+const SLOT_MACHINE_MARKER_INDEX = 5; // same index as '#00ffff' in markerColors
+
+export function isSlotMachineMarker(index) {
+  return index % 10 === SLOT_MACHINE_MARKER_INDEX;
+}
+
+export function getMarkerIcon(index) {
+  if (isSlotMachineMarker(index)) return '🎰';
+  return null;
+}
+
+
 
 /**
  * Find gallery frame by GitHub URL
@@ -401,7 +426,7 @@ async function triggerRepoDownload(githubUrl) {
       });
       const json = await res.json().catch(() => ({}));
       console.log(`📡 Response from ${ep}:`, { status: res.status, ok: res.ok, json });
-      
+
       if (res.ok && json && json.success) {
         console.log('✅ Download started:', json);
         // Optional: simple user feedback
